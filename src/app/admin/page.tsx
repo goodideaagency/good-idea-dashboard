@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isAdmin } from '@/lib/admin-auth'
+import { getAdminRole } from '@/lib/admin-auth'
 import { signout } from '../login/actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
@@ -32,7 +32,8 @@ export default async function AdminPage() {
   } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
-  if (!isAdmin(user.email)) redirect('/dashboard')
+  const role = await getAdminRole(user.email)
+  if (!role) redirect('/dashboard')
 
   const admin = createAdminClient()
   const [agenciesRes, accountsRes, subsRes, membersRes] = await Promise.all([
@@ -82,6 +83,14 @@ export default async function AdminPage() {
           <p className="text-sm text-gray-500">Every agency, account, and subscription</p>
         </div>
         <div className="flex items-center gap-2">
+          {role === 'superadmin' && (
+            <Link
+              href="/admin/admins"
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Admins
+            </Link>
+          )}
           <Link
             href="/admin/transactions"
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"

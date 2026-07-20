@@ -12,7 +12,7 @@ export default async function AdminTransactionsPage() {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  if (!isAdmin(user.email)) redirect('/dashboard')
+  if (!(await isAdmin(user.email))) redirect('/dashboard')
 
   const admin = createAdminClient()
   const { data: subs } = await admin
