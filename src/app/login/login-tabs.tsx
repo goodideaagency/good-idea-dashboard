@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { login, signup } from './actions'
+import { BrandMark } from '@/components/brand-mark'
 
 const inputCls =
-  'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
+  'mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
 
 export function LoginTabs({ error }: { error?: string }) {
   const [tab, setTab] = useState<'login' | 'signup'>('login')
@@ -15,8 +16,11 @@ export function LoginTabs({ error }: { error?: string }) {
     }`
 
   return (
-    <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-200">
-      <h1 className="text-xl font-semibold text-gray-900">Good Idea Billing</h1>
+    <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-[#ece7d8]">
+      <div className="flex items-center gap-2 text-[#1a1a1a]">
+        <BrandMark className="h-7 w-7" />
+        <h1 className="text-xl font-semibold text-gray-900">Good Idea Billing</h1>
+      </div>
       <p className="mt-1 text-sm text-gray-500">
         Manage your accounts and subscriptions.
       </p>
@@ -55,7 +59,7 @@ export function LoginTabs({ error }: { error?: string }) {
               className={inputCls}
             />
           </div>
-          <button className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+          <button className="w-full rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
             Log in
           </button>
         </form>
@@ -93,7 +97,7 @@ export function LoginTabs({ error }: { error?: string }) {
               className={inputCls}
             />
           </div>
-          <button className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+          <button className="w-full rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
             Create account
           </button>
         </form>

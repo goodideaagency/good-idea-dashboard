@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fffcf3;
+  --foreground: #292929;
 }
 
 @theme inline {
@@ -13,21 +13,16 @@
   --font-mono: var(--font-jetbrains);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-/* Body → Hanken Grotesk */
+/* Body → Hanken Grotesk on warm cream with a subtle dot grid (brand hero) */
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-hanken), Arial, Helvetica, sans-serif;
+  background-image: radial-gradient(rgba(41, 41, 41, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
-/* Headlines → Archivo (semibold) */
+/* Headlines → Archivo (semibold), near-black */
 h1,
 h2,
 h3,
@@ -36,10 +31,16 @@ h5,
 h6 {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 600;
+  color: #1a1a1a;
 }
 
-/* Buttons + accents → JetBrains Mono */
+/* Buttons + accents → JetBrains Mono, uppercase */
 button,
 .uppercase {
   font-family: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+button {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }

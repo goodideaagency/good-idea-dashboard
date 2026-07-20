@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { BrandMark } from '@/components/brand-mark'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { signout } from '../login/actions'
@@ -87,29 +88,32 @@ export default async function AdminPage() {
   const activeCount = subs.filter((s) => s.status && ACTIVE.has(s.status)).length
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">Good Idea — Admin</h1>
-          <p className="text-sm text-gray-500">Every agency, account, and subscription</p>
+    <main className="min-h-screen">
+      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
+        <div className="flex items-center gap-2.5">
+          <BrandMark className="h-6 w-6 text-[#1a1a1a]" />
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">Good Idea — Admin</h1>
+            <p className="text-sm text-gray-500">Every agency, account, and subscription</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {role === 'superadmin' && (
             <Link
               href="/admin/admins"
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
+              className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
             >
               Admins
             </Link>
           )}
           <Link
             href="/admin/transactions"
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
+            className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
           >
             All transactions
           </Link>
           <form action={signout}>
-            <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono">
+            <button className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
               Sign out
             </button>
           </form>
@@ -124,7 +128,7 @@ export default async function AdminPage() {
             { label: 'Client accounts', value: accounts.length },
             { label: 'Active subscriptions', value: activeCount },
           ].map((t) => (
-            <div key={t.label} className="rounded-xl bg-white p-5 ring-1 ring-gray-200">
+            <div key={t.label} className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
               <p className="text-2xl font-semibold text-gray-900">{t.value}</p>
               <p className="text-sm text-gray-500">{t.label}</p>
             </div>
@@ -137,7 +141,7 @@ export default async function AdminPage() {
             const agencyAccounts = accountsByAgency.get(agency.id) ?? []
             const email = emailByAgency.get(agency.id)
             return (
-              <div key={agency.id} className="overflow-hidden rounded-xl bg-white ring-1 ring-gray-200">
+              <div key={agency.id} className="overflow-hidden rounded-xl bg-white ring-1 ring-[#ece7d8]">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
                   <div>
                     <h2 className="font-semibold text-gray-900">{agency.name}</h2>
@@ -166,7 +170,7 @@ export default async function AdminPage() {
                         <th className="px-5 py-2 font-medium">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-[#f2ede0]">
                       {agencyAccounts.map((acc) => {
                         const sub = subByAccount.get(acc.id)
                         return (

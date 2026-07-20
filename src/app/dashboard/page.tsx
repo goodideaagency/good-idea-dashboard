@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type Stripe from 'stripe'
+import { BrandMark } from '@/components/brand-mark'
 import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { signout } from '../login/actions'
@@ -76,21 +77,24 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">{agencyName}</h1>
-          <p className="text-sm text-gray-500">{user.email}</p>
+    <main className="min-h-screen">
+      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
+        <div className="flex items-center gap-2.5">
+          <BrandMark className="h-6 w-6 text-[#1a1a1a]" />
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">{agencyName}</h1>
+            <p className="text-sm text-gray-500">{user.email}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/transactions"
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
+            className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
           >
             Transactions
           </Link>
           <form action={signout}>
-            <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono">
+            <button className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
               Sign out
             </button>
           </form>
@@ -102,7 +106,7 @@ export default async function DashboardPage() {
 
         <form
           action={addAccountAndCheckout}
-          className="mt-4 space-y-4 rounded-xl bg-white p-5 ring-1 ring-gray-200"
+          className="mt-4 space-y-4 rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]"
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -115,7 +119,7 @@ export default async function DashboardPage() {
                 type="text"
                 required
                 placeholder="Joe's Plumbing"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+                className="mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
               />
             </div>
             <div>
@@ -127,7 +131,7 @@ export default async function DashboardPage() {
                 name="website"
                 type="text"
                 placeholder="joesplumbing.com"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+                className="mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
               />
             </div>
           </div>
@@ -143,7 +147,7 @@ export default async function DashboardPage() {
                 {plans.map((plan, i) => (
                   <label
                     key={plan.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-300 px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
+                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
                   >
                     <input
                       type="radio"
@@ -159,14 +163,14 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          <button className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+          <button className="rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
             Add account &amp; continue to payment
           </button>
         </form>
 
         <h2 className="mt-8 text-base font-semibold text-gray-900">Your accounts</h2>
         {accounts && accounts.length > 0 ? (
-          <ul className="mt-4 divide-y divide-gray-200 rounded-xl bg-white ring-1 ring-gray-200">
+          <ul className="mt-4 divide-y divide-[#f0ecdf] rounded-xl bg-white ring-1 ring-[#ece7d8]">
             {accounts.map((a) => {
               const sub = a.subscriptions?.[0]
               return (
@@ -208,7 +212,7 @@ export default async function DashboardPage() {
             })}
           </ul>
         ) : (
-          <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
+          <div className="mt-4 rounded-xl border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
             <p className="text-sm text-gray-500">
               No accounts yet. Add your first one above.
             </p>

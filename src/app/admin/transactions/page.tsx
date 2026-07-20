@@ -30,12 +30,12 @@ export default async function AdminTransactionsPage() {
   const txns = await listAllInvoices()
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+    <main className="min-h-screen">
+      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
         <h1 className="text-lg font-semibold text-gray-900">All transactions</h1>
         <Link
           href="/admin"
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
+          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
           ← Back to admin
         </Link>

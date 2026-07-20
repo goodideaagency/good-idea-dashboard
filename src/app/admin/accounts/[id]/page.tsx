@@ -48,8 +48,8 @@ export default async function AdminAccountDetailPage({
     : []
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+    <main className="min-h-screen">
+      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">{account.name}</h1>
           <p className="text-sm text-gray-500">
@@ -59,14 +59,14 @@ export default async function AdminAccountDetailPage({
         </div>
         <Link
           href="/admin"
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
+          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
           ← Back to admin
         </Link>
       </header>
 
       <section className="mx-auto max-w-3xl p-6">
-        <div className="rounded-xl bg-white p-5 ring-1 ring-gray-200">
+        <div className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
           <p className="text-sm text-gray-500">Subscription</p>
           {sub ? (
             <div className="mt-1 flex items-center gap-3">
