@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type Stripe from 'stripe'
-import { BrandMark } from '@/components/brand-mark'
+import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { signout } from '../login/actions'
@@ -79,8 +79,9 @@ export default async function DashboardPage() {
   return (
     <main className="min-h-screen">
       <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
-        <div className="flex items-center gap-2.5">
-          <BrandMark className="h-6 w-6 text-[#1a1a1a]" />
+        <div className="flex items-center gap-3">
+          <Logo height={20} />
+          <div className="h-6 w-px bg-[#ece7d8]" />
           <div>
             <h1 className="text-lg font-semibold text-gray-900">{agencyName}</h1>
             <p className="text-sm text-gray-500">{user.email}</p>

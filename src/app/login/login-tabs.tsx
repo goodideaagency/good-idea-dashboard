@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { login, signup } from './actions'
-import { BrandMark } from '@/components/brand-mark'
+import { Logo } from '@/components/logo'
 
 const inputCls =
   'mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
@@ -17,11 +17,13 @@ export function LoginTabs({ error }: { error?: string }) {
 
   return (
     <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-[#ece7d8]">
-      <div className="flex items-center gap-2 text-[#1a1a1a]">
-        <BrandMark className="h-7 w-7" />
-        <h1 className="text-xl font-semibold text-gray-900">Good Idea Billing</h1>
+      <div className="flex items-center gap-2">
+        <Logo height={22} />
+        <span className="rounded-full border border-[#e7e2d3] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-gray-500">
+          Billing
+        </span>
       </div>
-      <p className="mt-1 text-sm text-gray-500">
+      <p className="mt-2 text-sm text-gray-500">
         Manage your accounts and subscriptions.
       </p>
 
