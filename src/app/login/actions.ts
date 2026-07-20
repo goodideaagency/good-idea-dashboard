@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isAdmin } from '@/lib/admin-auth'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -15,7 +16,13 @@ export async function login(formData: FormData) {
     redirect('/login?error=' + encodeURIComponent(error.message))
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   revalidatePath('/', 'layout')
+  // Admins land in the admin area; everyone else on their dashboard.
+  if (await isAdmin(user?.email)) redirect('/admin')
   redirect('/dashboard')
 }
 

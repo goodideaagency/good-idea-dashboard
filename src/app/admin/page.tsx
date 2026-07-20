@@ -66,6 +66,17 @@ export default async function AdminPage() {
     if (email && !emailByAgency.has(m.agency_id)) emailByAgency.set(m.agency_id, email)
   }
 
+  // Hide admin-owned agencies (auto-created when an admin signs up) from the list.
+  const { data: adminRows } = await admin.from('admins').select('email')
+  const adminEmails = new Set<string>(
+    (adminRows ?? []).map((r) => (r.email as string).toLowerCase())
+  )
+  const superEmail = (process.env.SUPERADMIN_EMAIL ?? '').trim().toLowerCase()
+  if (superEmail) adminEmails.add(superEmail)
+  const visibleAgencies = agencies.filter(
+    (a) => !adminEmails.has((emailByAgency.get(a.id) ?? '').toLowerCase())
+  )
+
   const accountsByAgency = new Map<string, typeof accounts>()
   for (const a of accounts) {
     const list = accountsByAgency.get(a.agency_id) ?? []
@@ -109,7 +120,7 @@ export default async function AdminPage() {
         {/* Summary tiles */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Agencies', value: agencies.length },
+            { label: 'Agencies', value: visibleAgencies.length },
             { label: 'Client accounts', value: accounts.length },
             { label: 'Active subscriptions', value: activeCount },
           ].map((t) => (
@@ -122,7 +133,7 @@ export default async function AdminPage() {
 
         {/* Per-agency breakdown */}
         <div className="mt-8 space-y-6">
-          {agencies.map((agency) => {
+          {visibleAgencies.map((agency) => {
             const agencyAccounts = accountsByAgency.get(agency.id) ?? []
             const email = emailByAgency.get(agency.id)
             return (

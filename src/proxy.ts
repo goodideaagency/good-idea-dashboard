@@ -33,11 +33,13 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
-  const isProtected = path.startsWith('/dashboard') || path.startsWith('/admin')
+  // /admin/login must stay reachable while logged out.
+  const isAdminPath = path.startsWith('/admin') && path !== '/admin/login'
+  const isProtected = path.startsWith('/dashboard') || isAdminPath
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = isAdminPath ? '/admin/login' : '/login'
     return NextResponse.redirect(url)
   }
 
