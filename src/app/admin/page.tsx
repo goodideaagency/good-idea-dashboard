@@ -99,6 +99,12 @@ export default async function AdminPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/admin/new-agency"
+            className="rounded-lg bg-[#f7cf4a] px-3 py-1.5 text-sm font-semibold text-black hover:brightness-95 font-mono uppercase tracking-wide"
+          >
+            + New agency
+          </Link>
           {role === 'superadmin' && (
             <Link
               href="/admin/admins"
