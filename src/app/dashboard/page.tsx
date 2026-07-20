@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
@@ -81,11 +82,19 @@ export default async function DashboardPage() {
           <h1 className="text-lg font-semibold text-gray-900">{agencyName}</h1>
           <p className="text-sm text-gray-500">{user.email}</p>
         </div>
-        <form action={signout}>
-          <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/transactions"
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Transactions
+          </Link>
+          <form action={signout}>
+            <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <section className="mx-auto max-w-3xl p-6">
@@ -161,25 +170,39 @@ export default async function DashboardPage() {
             {accounts.map((a) => {
               const sub = a.subscriptions?.[0]
               return (
-                <li key={a.id} className="flex items-center justify-between px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{a.name}</p>
-                    {a.website && (
-                      <p className="text-sm text-gray-500">{a.website}</p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    {sub ? (
-                      <>
-                        <p className="text-sm text-gray-900">{sub.product_name}</p>
-                        <span className="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          {sub.status}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-400">No subscription yet</span>
-                    )}
-                  </div>
+                <li key={a.id}>
+                  <Link
+                    href={`/dashboard/accounts/${a.id}`}
+                    className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{a.name}</p>
+                      {a.website && (
+                        <p className="text-sm text-gray-500">{a.website}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-right">
+                      <div>
+                        {sub ? (
+                          <>
+                            <p className="text-sm text-gray-900">{sub.product_name}</p>
+                            <span
+                              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                                sub.status === 'active' || sub.status === 'trialing'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {sub.status}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400">No subscription yet</span>
+                        )}
+                      </div>
+                      <span className="text-gray-300">›</span>
+                    </div>
+                  </Link>
                 </li>
               )
             })}

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -80,11 +81,19 @@ export default async function AdminPage() {
           <h1 className="text-lg font-semibold text-gray-900">Good Idea — Admin</h1>
           <p className="text-sm text-gray-500">Every agency, account, and subscription</p>
         </div>
-        <form action={signout}>
-          <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/transactions"
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            All transactions
+          </Link>
+          <form action={signout}>
+            <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <section className="mx-auto max-w-5xl p-6">
@@ -143,7 +152,12 @@ export default async function AdminPage() {
                         return (
                           <tr key={acc.id}>
                             <td className="px-5 py-3">
-                              <p className="font-medium text-gray-900">{acc.name}</p>
+                              <Link
+                                href={`/admin/accounts/${acc.id}`}
+                                className="font-medium text-gray-900 underline-offset-2 hover:underline"
+                              >
+                                {acc.name}
+                              </Link>
                               {acc.website && (
                                 <p className="text-xs text-gray-500">{acc.website}</p>
                               )}
