@@ -59,7 +59,7 @@ export default async function AdminAccountDetailPage({
         </div>
         <Link
           href="/admin"
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
         >
           ← Back to admin
         </Link>

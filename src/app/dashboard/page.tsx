@@ -85,12 +85,12 @@ export default async function DashboardPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/transactions"
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
           >
             Transactions
           </Link>
           <form action={signout}>
-            <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+            <button className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono">
               Sign out
             </button>
           </form>

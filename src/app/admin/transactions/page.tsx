@@ -35,7 +35,7 @@ export default async function AdminTransactionsPage() {
         <h1 className="text-lg font-semibold text-gray-900">All transactions</h1>
         <Link
           href="/admin"
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 font-mono"
         >
           ← Back to admin
         </Link>
