@@ -114,6 +114,12 @@ export default async function AdminPage() {
             </Link>
           )}
           <Link
+            href="/admin/products"
+            className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+          >
+            Products
+          </Link>
+          <Link
             href="/admin/transactions"
             className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
           >
