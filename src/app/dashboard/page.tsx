@@ -51,7 +51,12 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: true })
     .returns<AccountRow[]>()
 
-  // Available subscription plans, read live from Stripe.
+  // Plans this agency may add. Opt-in via Stripe product metadata:
+  //   billing_visible = "true"           -> shown to every agency
+  //   billing_agency  = "Agency Name"    -> shown only to that agency
+  //                                         (comma-separate for several)
+  // Untagged products never appear in the platform.
+  const agencyKey = agencyName.trim().toLowerCase()
   let plans: PlanOption[] = []
   try {
     const prices = await stripe.prices.list({
@@ -61,6 +66,15 @@ export default async function DashboardPage() {
       limit: 100,
     })
     plans = prices.data
+      .filter((p) => {
+        const meta = (p.product as Stripe.Product)?.metadata ?? {}
+        if (meta.billing_visible === 'true') return true
+        const restricted = (meta.billing_agency ?? '')
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
+        return restricted.includes(agencyKey)
+      })
       .map((p) => {
         const product = p.product as Stripe.Product
         const amount = p.unit_amount ?? 0
@@ -140,8 +154,8 @@ export default async function DashboardPage() {
           <div>
             <p className="text-sm font-medium text-gray-700">Choose a plan</p>
             {plans.length === 0 ? (
-              <p className="mt-2 text-sm text-red-600">
-                No subscription plans found in Stripe.
+              <p className="mt-2 text-sm text-gray-500">
+                No plans available for your account yet. Contact Good Idea to get set up.
               </p>
             ) : (
               <div className="mt-2 space-y-2">
