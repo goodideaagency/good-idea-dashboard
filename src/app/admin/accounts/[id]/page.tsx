@@ -69,18 +69,25 @@ export default async function AdminAccountDetailPage({
         <div className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
           <p className="text-sm text-gray-500">Subscription</p>
           {sub ? (
-            <div className="mt-1 flex items-center gap-3">
-              <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
-              <span
-                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                  sub.status === 'active' || sub.status === 'trialing'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {sub.status ?? 'none'}
-              </span>
-            </div>
+            <>
+              <div className="mt-1 flex items-center gap-3">
+                <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
+                <span
+                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                    sub.status === 'active' || sub.status === 'trialing'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {sub.status ?? 'none'}
+                </span>
+              </div>
+              {sub.stripe_subscription_id && (
+                <p className="mt-2 font-mono text-xs text-gray-400">
+                  {sub.stripe_subscription_id}
+                </p>
+              )}
+            </>
           ) : (
             <p className="mt-1 text-sm text-gray-400">No subscription yet.</p>
           )}
