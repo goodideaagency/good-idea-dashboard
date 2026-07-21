@@ -5,6 +5,7 @@ import { Logo } from '@/components/logo'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { signout } from '../login/actions'
+import { setAgencyArchived } from './actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
 
@@ -20,7 +21,10 @@ export default async function AdminPage() {
 
   const admin = createAdminClient()
   const [agenciesRes, accountsRes, subsRes, membersRes] = await Promise.all([
-    admin.from('agencies').select('id, name, stripe_customer_id, created_at').order('created_at'),
+    admin
+      .from('agencies')
+      .select('id, name, stripe_customer_id, archived, created_at')
+      .order('created_at'),
     admin.from('accounts').select('id, agency_id, name, website').order('created_at'),
     admin.from('subscriptions').select('account_id, agency_id, product_name, status'),
     admin.from('agency_users').select('user_id, agency_id'),
@@ -62,8 +66,9 @@ export default async function AdminPage() {
   const superEmail = (process.env.SUPERADMIN_EMAIL ?? '').trim().toLowerCase()
   if (superEmail) adminEmails.add(superEmail)
   const visibleAgencies = agencies.filter(
-    (a) => !adminEmails.has((emailByAgency.get(a.id) ?? '').toLowerCase())
+    (a) => !a.archived && !adminEmails.has((emailByAgency.get(a.id) ?? '').toLowerCase())
   )
+  const archivedCount = agencies.filter((a) => a.archived).length
 
   const accountsByAgency = new Map<string, typeof accounts>()
   for (const a of accounts) {
@@ -111,6 +116,12 @@ export default async function AdminPage() {
             className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
           >
             All transactions
+          </Link>
+          <Link
+            href="/admin/archived"
+            className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+          >
+            Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
           </Link>
           <form action={signout}>
             <button className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
@@ -164,6 +175,13 @@ export default async function AdminPage() {
                     >
                       View
                     </Link>
+                    <form action={setAgencyArchived}>
+                      <input type="hidden" name="agency_id" value={agency.id} />
+                      <input type="hidden" name="archived" value="true" />
+                      <button className="rounded-lg border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
+                        Archive
+                      </button>
+                    </form>
                   </div>
                 </div>
 
