@@ -140,6 +140,26 @@ export default async function ProductsPage() {
                   </div>
                 )}
 
+                <div className="mt-4">
+                  <label
+                    className="block text-xs uppercase tracking-wide text-gray-400"
+                    htmlFor={`onboarding-${product.id}`}
+                  >
+                    Redirect after purchase <span className="lowercase tracking-normal">(optional)</span>
+                  </label>
+                  <input
+                    id={`onboarding-${product.id}`}
+                    type="url"
+                    name="onboarding_url"
+                    defaultValue={meta.onboarding_url ?? ''}
+                    placeholder="https://itsgoodidea.com/onboarding"
+                    className="mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Where buyers land after paying for this plan. Leave blank to send them to their dashboard.
+                  </p>
+                </div>
+
                 <button className="mt-4 rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
                   Save
                 </button>

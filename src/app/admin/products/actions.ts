@@ -24,12 +24,16 @@ export async function updateProductVisibility(formData: FormData) {
     .getAll('agency')
     .map((v) => String(v).trim())
     .filter(Boolean)
+  const onboardingUrl = String(formData.get('onboarding_url') || '').trim()
 
   await stripe.products.update(productId, {
     metadata: {
-      // Empty string tells Stripe to delete the key (→ hidden).
+      // Empty string tells Stripe to delete the key (→ hidden / no redirect).
       billing_visible: visibleAll ? 'true' : '',
       billing_agency: agencies.length ? agencies.join(', ') : '',
+      // Where buyers land after purchasing this product (read by the checkout
+      // return handler). Blank clears it → they fall back to the dashboard.
+      onboarding_url: onboardingUrl,
     },
   })
 
