@@ -136,7 +136,10 @@ export default async function ViewAsAgencyPage({
         {accounts && accounts.length > 0 ? (
           <ul className="mt-4 divide-y divide-[#f0ecdf] rounded-xl bg-white ring-1 ring-[#ece7d8]">
             {accounts.map((a) => {
-              const sub = a.subscriptions?.[0]
+              const subs = a.subscriptions ?? []
+              const activeCount = subs.filter(
+                (s) => s.status === 'active' || s.status === 'trialing'
+              ).length
               return (
                 <li key={a.id}>
                   <Link
@@ -149,18 +152,12 @@ export default async function ViewAsAgencyPage({
                     </div>
                     <div className="flex items-center gap-3 text-right">
                       <div>
-                        {sub ? (
+                        {subs.length > 0 ? (
                           <>
-                            <p className="text-sm text-gray-900">{sub.product_name}</p>
-                            <span
-                              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                                sub.status === 'active' || sub.status === 'trialing'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              {sub.status}
-                            </span>
+                            <p className="text-sm text-gray-900">
+                              {subs.length} service{subs.length === 1 ? '' : 's'}
+                            </p>
+                            <p className="text-xs text-gray-500">{activeCount} active</p>
                           </>
                         ) : (
                           <span className="text-xs text-gray-400">No subscription yet</span>

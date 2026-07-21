@@ -8,24 +8,6 @@ import { signout } from '../login/actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
 
-function StatusBadge({ status }: { status: string | null }) {
-  if (!status) {
-    return <span className="text-xs text-gray-400">No subscription</span>
-  }
-  const green = ACTIVE.has(status)
-  const red = ['past_due', 'unpaid', 'incomplete', 'canceled'].includes(status)
-  const cls = green
-    ? 'bg-green-100 text-green-800'
-    : red
-      ? 'bg-red-100 text-red-800'
-      : 'bg-gray-100 text-gray-700'
-  return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
-      {status}
-    </span>
-  )
-}
-
 export default async function AdminPage() {
   const supabase = await createClient()
   const {
@@ -49,9 +31,14 @@ export default async function AdminPage() {
   const subs = subsRes.data ?? []
   const members = membersRes.data ?? []
 
-  // Map each account to its (first) subscription.
-  const subByAccount = new Map<string, (typeof subs)[number]>()
-  for (const s of subs) if (s.account_id) subByAccount.set(s.account_id, s)
+  // Map each account to ALL its subscriptions (an account can have several).
+  const subsByAccount = new Map<string, typeof subs>()
+  for (const s of subs) {
+    if (!s.account_id) continue
+    const list = subsByAccount.get(s.account_id) ?? []
+    list.push(s)
+    subsByAccount.set(s.account_id, list)
+  }
 
   // Map each agency to a contact email (best effort).
   const emailByUser = new Map<string, string>()
@@ -187,13 +174,16 @@ export default async function AdminPage() {
                     <thead>
                       <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
                         <th className="px-5 py-2 font-medium">Account</th>
-                        <th className="px-5 py-2 font-medium">Plan</th>
-                        <th className="px-5 py-2 font-medium">Status</th>
+                        <th className="px-5 py-2 font-medium">Services</th>
+                        <th className="px-5 py-2 font-medium">Active</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f2ede0]">
                       {agencyAccounts.map((acc) => {
-                        const sub = subByAccount.get(acc.id)
+                        const accSubs = subsByAccount.get(acc.id) ?? []
+                        const accActive = accSubs.filter(
+                          (s) => s.status && ACTIVE.has(s.status)
+                        ).length
                         return (
                           <tr key={acc.id}>
                             <td className="px-5 py-3">
@@ -208,10 +198,16 @@ export default async function AdminPage() {
                               )}
                             </td>
                             <td className="px-5 py-3 text-gray-700">
-                              {sub?.product_name ?? '—'}
+                              {accSubs.length === 0
+                                ? '—'
+                                : `${accSubs.length} service${accSubs.length === 1 ? '' : 's'}`}
                             </td>
-                            <td className="px-5 py-3">
-                              <StatusBadge status={sub?.status ?? null} />
+                            <td className="px-5 py-3 text-gray-700">
+                              {accSubs.length === 0 ? (
+                                <span className="text-xs text-gray-400">No subscription</span>
+                              ) : (
+                                `${accActive} active`
+                              )}
                             </td>
                           </tr>
                         )

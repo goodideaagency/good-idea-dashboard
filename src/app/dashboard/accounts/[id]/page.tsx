@@ -2,8 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { listInvoicesForSubscription } from '@/lib/transactions'
-import { TransactionsTable } from '@/components/transactions-table'
-import { SubscriptionActions } from '@/components/subscription-actions'
+import { AccountServices, type AccountService } from '@/components/account-services'
 import { updateSubscriptionState } from './actions'
 
 type AccountRow = {
@@ -16,6 +15,7 @@ type AccountRow = {
     status: string | null
     cancel_at_period_end: boolean | null
     current_period_end: string | null
+    created_at: string | null
   }[]
 }
 
@@ -35,28 +35,26 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from('accounts')
     .select(
-      'id, name, website, subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end)'
+      'id, name, website, subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end, created_at)'
     )
     .eq('id', id)
     .maybeSingle<AccountRow>()
 
   if (!account) redirect('/dashboard')
 
-  const sub = account.subscriptions?.[0]
-  const txns = sub?.stripe_subscription_id
-    ? await listInvoicesForSubscription(sub.stripe_subscription_id)
-    : []
+  const subs = [...(account.subscriptions ?? [])].sort((a, b) =>
+    (a.created_at ?? '').localeCompare(b.created_at ?? '')
+  )
 
-  const isLive = sub?.status === 'active' || sub?.status === 'trialing'
-  const canCancel = isLive && !sub?.cancel_at_period_end
-  const canRestart = isLive && !!sub?.cancel_at_period_end
-  const periodEndLabel = sub?.current_period_end
-    ? new Date(sub.current_period_end).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : null
+  // Fetch each service's transaction history (one Stripe call per subscription).
+  const services: AccountService[] = await Promise.all(
+    subs.map(async (s) => ({
+      ...s,
+      txns: s.stripe_subscription_id
+        ? await listInvoicesForSubscription(s.stripe_subscription_id)
+        : [],
+    }))
+  )
 
   return (
     <main className="min-h-screen">
@@ -74,42 +72,15 @@ export default async function AccountDetailPage({
       </header>
 
       <section className="mx-auto max-w-3xl p-6">
-        <div className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
-          <p className="text-sm text-gray-500">Subscription</p>
-          {sub ? (
-            <>
-              <div className="mt-1 flex items-center gap-3">
-                <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
-                <span
-                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                    sub.status === 'active' || sub.status === 'trialing'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {sub.status ?? 'none'}
-                </span>
-              </div>
-              {sub.stripe_subscription_id && (
-                <SubscriptionActions
-                  action={updateSubscriptionState}
-                  subscriptionId={sub.stripe_subscription_id}
-                  accountId={account.id}
-                  canCancel={canCancel}
-                  canRestart={canRestart}
-                  periodEndLabel={periodEndLabel}
-                />
-              )}
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-gray-400">No subscription yet.</p>
-          )}
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="text-base font-semibold text-gray-900">
+            Services{services.length > 0 ? ` (${services.length})` : ''}
+          </h2>
         </div>
-
-        <h2 className="mt-8 text-base font-semibold text-gray-900">Transaction history</h2>
-        <TransactionsTable
-          txns={txns}
-          emptyText="No transactions for this account yet."
+        <AccountServices
+          accountId={account.id}
+          services={services}
+          action={updateSubscriptionState}
         />
       </section>
     </main>
