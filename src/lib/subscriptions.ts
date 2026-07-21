@@ -49,3 +49,18 @@ export async function upsertSubscriptionFromStripe(sub: Stripe.Subscription) {
 
   return { productName, onboardingUrl }
 }
+
+// Schedules a subscription to cancel at the end of the current billing period
+// (cancelAtPeriodEnd = true), or undoes that (false). The client keeps service
+// until the paid-through date either way; nothing is charged or refunded now.
+// Syncs our DB immediately so the UI updates without waiting for the webhook.
+export async function setSubscriptionCancelation(
+  subscriptionId: string,
+  cancelAtPeriodEnd: boolean
+) {
+  const sub = await stripe.subscriptions.update(subscriptionId, {
+    cancel_at_period_end: cancelAtPeriodEnd,
+  })
+  await upsertSubscriptionFromStripe(sub)
+  return sub
+}

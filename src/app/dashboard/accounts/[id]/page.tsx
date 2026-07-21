@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { listInvoicesForSubscription } from '@/lib/transactions'
 import { TransactionsTable } from '@/components/transactions-table'
+import { SubscriptionActions } from '@/components/subscription-actions'
+import { updateSubscriptionState } from './actions'
 
 type AccountRow = {
   id: string
@@ -12,6 +14,8 @@ type AccountRow = {
     stripe_subscription_id: string | null
     product_name: string | null
     status: string | null
+    cancel_at_period_end: boolean | null
+    current_period_end: string | null
   }[]
 }
 
@@ -30,7 +34,9 @@ export default async function AccountDetailPage({
   // Row-level security ensures this only returns an account in the user's agency.
   const { data: account } = await supabase
     .from('accounts')
-    .select('id, name, website, subscriptions(stripe_subscription_id, product_name, status)')
+    .select(
+      'id, name, website, subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end)'
+    )
     .eq('id', id)
     .maybeSingle<AccountRow>()
 
@@ -40,6 +46,17 @@ export default async function AccountDetailPage({
   const txns = sub?.stripe_subscription_id
     ? await listInvoicesForSubscription(sub.stripe_subscription_id)
     : []
+
+  const isLive = sub?.status === 'active' || sub?.status === 'trialing'
+  const canCancel = isLive && !sub?.cancel_at_period_end
+  const canRestart = isLive && !!sub?.cancel_at_period_end
+  const periodEndLabel = sub?.current_period_end
+    ? new Date(sub.current_period_end).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null
 
   return (
     <main className="min-h-screen">
@@ -60,18 +77,30 @@ export default async function AccountDetailPage({
         <div className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
           <p className="text-sm text-gray-500">Subscription</p>
           {sub ? (
-            <div className="mt-1 flex items-center gap-3">
-              <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
-              <span
-                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                  sub.status === 'active' || sub.status === 'trialing'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {sub.status ?? 'none'}
-              </span>
-            </div>
+            <>
+              <div className="mt-1 flex items-center gap-3">
+                <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
+                <span
+                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                    sub.status === 'active' || sub.status === 'trialing'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {sub.status ?? 'none'}
+                </span>
+              </div>
+              {sub.stripe_subscription_id && (
+                <SubscriptionActions
+                  action={updateSubscriptionState}
+                  subscriptionId={sub.stripe_subscription_id}
+                  accountId={account.id}
+                  canCancel={canCancel}
+                  canRestart={canRestart}
+                  periodEndLabel={periodEndLabel}
+                />
+              )}
+            </>
           ) : (
             <p className="mt-1 text-sm text-gray-400">No subscription yet.</p>
           )}

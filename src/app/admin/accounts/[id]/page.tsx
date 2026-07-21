@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/admin-auth'
 import { listInvoicesForSubscription } from '@/lib/transactions'
 import { TransactionsTable } from '@/components/transactions-table'
+import { SubscriptionActions } from '@/components/subscription-actions'
+import { updateSubscriptionStateAdmin } from './actions'
 
 type AccountRow = {
   id: string
@@ -15,6 +17,8 @@ type AccountRow = {
     stripe_subscription_id: string | null
     product_name: string | null
     status: string | null
+    cancel_at_period_end: boolean | null
+    current_period_end: string | null
   }[]
 }
 
@@ -35,7 +39,7 @@ export default async function AdminAccountDetailPage({
   const { data: account } = await admin
     .from('accounts')
     .select(
-      'id, name, website, agencies(name), subscriptions(stripe_subscription_id, product_name, status)'
+      'id, name, website, agencies(name), subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end)'
     )
     .eq('id', id)
     .maybeSingle<AccountRow>()
@@ -46,6 +50,17 @@ export default async function AdminAccountDetailPage({
   const txns = sub?.stripe_subscription_id
     ? await listInvoicesForSubscription(sub.stripe_subscription_id)
     : []
+
+  const isLive = sub?.status === 'active' || sub?.status === 'trialing'
+  const canCancel = isLive && !sub?.cancel_at_period_end
+  const canRestart = isLive && !!sub?.cancel_at_period_end
+  const periodEndLabel = sub?.current_period_end
+    ? new Date(sub.current_period_end).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null
 
   return (
     <main className="min-h-screen">
@@ -86,6 +101,16 @@ export default async function AdminAccountDetailPage({
                 <p className="mt-2 font-mono text-xs text-gray-400">
                   {sub.stripe_subscription_id}
                 </p>
+              )}
+              {sub.stripe_subscription_id && (
+                <SubscriptionActions
+                  action={updateSubscriptionStateAdmin}
+                  subscriptionId={sub.stripe_subscription_id}
+                  accountId={account.id}
+                  canCancel={canCancel}
+                  canRestart={canRestart}
+                  periodEndLabel={periodEndLabel}
+                />
               )}
             </>
           ) : (
