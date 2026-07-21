@@ -1,13 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import type Stripe from 'stripe'
 import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
-import { stripe } from '@/lib/stripe'
+import { listPlansForAgency } from '@/lib/plans'
+import { AddServiceForm } from '@/components/add-service-form'
 import { signout } from '../login/actions'
-import { addAccountAndCheckout } from './actions'
-
-type PlanOption = { id: string; label: string; amount: number }
+import { addServiceAndCheckout } from './actions'
 
 type AccountRow = {
   id: string
@@ -18,10 +16,6 @@ type AccountRow = {
     product_name: string | null
     current_period_end: string | null
   }[]
-}
-
-function money(cents: number) {
-  return `$${(cents / 100).toLocaleString('en-US')}`
 }
 
 export default async function DashboardPage() {
@@ -51,44 +45,8 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: true })
     .returns<AccountRow[]>()
 
-  // Plans this agency may add. Opt-in via Stripe product metadata:
-  //   billing_visible = "true"           -> shown to every agency
-  //   billing_agency  = "Agency Name"    -> shown only to that agency
-  //                                         (comma-separate for several)
-  // Untagged products never appear in the platform.
-  const agencyKey = agencyName.trim().toLowerCase()
-  let plans: PlanOption[] = []
-  try {
-    const prices = await stripe.prices.list({
-      active: true,
-      type: 'recurring',
-      expand: ['data.product'],
-      limit: 100,
-    })
-    plans = prices.data
-      .filter((p) => {
-        const meta = (p.product as Stripe.Product)?.metadata ?? {}
-        if (meta.billing_visible === 'true') return true
-        const restricted = (meta.billing_agency ?? '')
-          .split(',')
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
-        return restricted.includes(agencyKey)
-      })
-      .map((p) => {
-        const product = p.product as Stripe.Product
-        const amount = p.unit_amount ?? 0
-        const interval = p.recurring?.interval ?? 'month'
-        return {
-          id: p.id,
-          amount,
-          label: `${product.name} — ${money(amount)}/${interval}`,
-        }
-      })
-      .sort((a, b) => a.amount - b.amount)
-  } catch {
-    plans = []
-  }
+  const plans = await listPlansForAgency(agencyName)
+  const accountOptions = (accounts ?? []).map((a) => ({ id: a.id, name: a.name }))
 
   return (
     <main className="min-h-screen">
@@ -117,71 +75,15 @@ export default async function DashboardPage() {
       </header>
 
       <section className="mx-auto max-w-3xl p-6">
-        <h2 className="text-base font-semibold text-gray-900">Add a client account</h2>
+        <h2 className="text-base font-semibold text-gray-900">Add a service</h2>
 
-        <form
-          action={addAccountAndCheckout}
-          className="mt-4 space-y-4 rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700" htmlFor="name">
-                Business name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                placeholder="Joe's Plumbing"
-                className="mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700" htmlFor="website">
-                Website <span className="font-normal text-gray-400">(optional)</span>
-              </label>
-              <input
-                id="website"
-                name="website"
-                type="text"
-                placeholder="joesplumbing.com"
-                className="mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
-              />
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-gray-700">Choose a plan</p>
-            {plans.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-500">
-                No plans available for your account yet. Contact Good Idea to get set up.
-              </p>
-            ) : (
-              <div className="mt-2 space-y-2">
-                {plans.map((plan, i) => (
-                  <label
-                    key={plan.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
-                  >
-                    <input
-                      type="radio"
-                      name="priceId"
-                      value={plan.id}
-                      defaultChecked={i === 0}
-                      required
-                    />
-                    <span className="text-gray-900">{plan.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button className="rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
-            Add account &amp; continue to payment
-          </button>
-        </form>
+        <div className="mt-4 rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
+          <AddServiceForm
+            action={addServiceAndCheckout}
+            plans={plans}
+            accounts={accountOptions}
+          />
+        </div>
 
         <h2 className="mt-8 text-base font-semibold text-gray-900">Your accounts</h2>
         {accounts && accounts.length > 0 ? (

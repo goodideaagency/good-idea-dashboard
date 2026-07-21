@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { listInvoicesForSubscription } from '@/lib/transactions'
+import { listPlansForAgency } from '@/lib/plans'
 import { AccountServices, type AccountService } from '@/components/account-services'
+import { AddServiceForm } from '@/components/add-service-form'
+import { addServiceAndCheckout } from '../../actions'
 import { updateSubscriptionState } from './actions'
 
 type AccountRow = {
@@ -41,6 +44,15 @@ export default async function AccountDetailPage({
     .maybeSingle<AccountRow>()
 
   if (!account) redirect('/dashboard')
+
+  // The agency's name drives which plans are offered for the new service.
+  const { data: membership } = await supabase
+    .from('agency_users')
+    .select('agencies(name)')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  const agencyName = (membership?.agencies as { name?: string } | null)?.name ?? ''
+  const plans = await listPlansForAgency(agencyName)
 
   const subs = [...(account.subscriptions ?? [])].sort((a, b) =>
     (a.created_at ?? '').localeCompare(b.created_at ?? '')
@@ -82,6 +94,16 @@ export default async function AccountDetailPage({
           services={services}
           action={updateSubscriptionState}
         />
+
+        <h2 className="mt-10 text-base font-semibold text-gray-900">Add another service</h2>
+        <div className="mt-4 rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
+          <AddServiceForm
+            action={addServiceAndCheckout}
+            plans={plans}
+            accounts={[]}
+            fixedAccountId={account.id}
+          />
+        </div>
       </section>
     </main>
   )
