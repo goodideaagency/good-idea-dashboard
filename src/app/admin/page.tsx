@@ -167,9 +167,17 @@ export default async function AdminPage() {
                       )}
                     </p>
                   </div>
-                  <span className="text-sm text-gray-500">
-                    {agencyAccounts.length} account{agencyAccounts.length === 1 ? '' : 's'}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500">
+                      {agencyAccounts.length} account{agencyAccounts.length === 1 ? '' : 's'}
+                    </span>
+                    <Link
+                      href={`/admin/view-as/${agency.id}`}
+                      className="rounded-lg border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+                    >
+                      View
+                    </Link>
+                  </div>
                 </div>
 
                 {agencyAccounts.length === 0 ? (
