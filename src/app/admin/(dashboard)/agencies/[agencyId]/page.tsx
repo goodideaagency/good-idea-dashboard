@@ -35,7 +35,8 @@ export default async function AgencyDetailPage({
       .order('created_at'),
     admin
       .from('subscriptions')
-      .select('account_id, agency_id, product_name, status, amount_cents, interval'),
+      .select('account_id, agency_id, product_name, status, amount_cents, interval')
+      .eq('agency_id', agencyId),
     admin.from('agency_users').select('user_id, agency_id').eq('agency_id', agencyId),
   ])
 
@@ -64,7 +65,7 @@ export default async function AgencyDetailPage({
     subsByAccount.set(s.account_id, list)
   }
 
-  const agencyMrrCents = calculateMrrCents(subs.filter((s) => s.agency_id === agencyId))
+  const agencyMrrCents = calculateMrrCents(subs)
 
   return (
     <div className="p-8">

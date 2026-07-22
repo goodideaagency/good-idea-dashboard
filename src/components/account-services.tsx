@@ -1,6 +1,7 @@
 import type { Txn } from '@/lib/transactions'
 import { TransactionsTable } from './transactions-table'
 import { SubscriptionActions } from './subscription-actions'
+import { StatusBadge } from './status-badge'
 
 export type AccountService = {
   stripe_subscription_id: string | null
@@ -52,13 +53,7 @@ export function AccountServices({
               <p className="text-sm text-gray-500">Service</p>
               <div className="mt-1 flex items-center gap-3">
                 <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
-                <span
-                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                    isLive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {sub.status ?? 'none'}
-                </span>
+                <StatusBadge status={sub.status ?? 'none'} />
               </div>
               {sub.stripe_subscription_id && (
                 <p className="mt-2 font-mono text-xs text-gray-400">{sub.stripe_subscription_id}</p>
