@@ -2,7 +2,13 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getListFields, createTask, linkTasks } from '@/lib/clickup'
+import {
+  getListFields,
+  createTask,
+  createTaskFromTemplate,
+  setTaskCustomField,
+  linkTasks,
+} from '@/lib/clickup'
 import { getServiceByKey } from '@/lib/service-catalog'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,15 +48,27 @@ export async function submitServiceRequest(formData: FormData) {
     )
   }
 
-  // Re-fetch the field schema server-side -- never trust field types/ids from the client.
-  const fields = await getListFields(service.internalListId)
+  // Re-fetch the field schema server-side -- never trust field types/ids from
+  // the client. Restricted to this service's allow-listed fields (see
+  // service-catalog.ts) since ClickUp doesn't cleanly scope fields to one List.
+  const allFields = await getListFields(service.internalListId)
+  const fields = allFields.filter((f) => service.fieldIds.includes(f.id))
   const customFields = fields
     .map((f) => ({ id: f.id, value: parseFieldValue(f.type, formData.get(`field_${f.id}`)) }))
     .filter((f) => f.value !== undefined)
 
-  const internalTask = await createTask(service.internalListId, `${service.label} — ${account.name}`, {
-    customFields,
-  })
+  const internalTaskName = `${service.label} — ${account.name}`
+  const internalTask = service.templateId
+    ? await createTaskFromTemplate(service.internalListId, service.templateId, internalTaskName)
+    : await createTask(service.internalListId, internalTaskName, { customFields })
+
+  // Template-based creation ignores custom_fields in the create call, so set
+  // each answer afterward.
+  if (service.templateId && internalTask) {
+    for (const cf of customFields) {
+      await setTaskCustomField(internalTask.id, cf.id, cf.value)
+    }
+  }
 
   const clientTask = await createTask(account.clickup_list_id, service.label, {
     status: 'scoping',

@@ -216,6 +216,49 @@ export async function createTask(
   }
 }
 
+// Creates a task from a saved ClickUp Task Template (checklist, description,
+// etc. all come from the template) -- note the template-creation endpoint
+// ignores a custom_fields body param, so answers must be set afterward via
+// setTaskCustomField, one call per field.
+export async function createTaskFromTemplate(
+  listId: string,
+  templateId: string,
+  name: string
+): Promise<{ id: string; url: string } | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/list/${listId}/taskTemplate/${templateId}`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const id = data.id ?? data.task?.id
+    const url = data.url ?? data.task?.url ?? ''
+    return id ? { id, url } : null
+  } catch {
+    return null
+  }
+}
+
+// Sets one Custom Field's value on an existing task.
+export async function setTaskCustomField(
+  taskId: string,
+  fieldId: string,
+  value: unknown
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}/field/${fieldId}`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // Links two tasks together (ClickUp's native task-relationship feature) --
 // used to connect a client-facing task to its paired internal task.
 export async function linkTasks(taskIdA: string, taskIdB: string): Promise<boolean> {

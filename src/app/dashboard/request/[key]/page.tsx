@@ -26,11 +26,15 @@ export default async function RequestServiceFormPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: accounts }, fields] = await Promise.all([
+  const [{ data: accounts }, allFields] = await Promise.all([
     supabase.from('accounts').select('id, name, clickup_list_id').order('name'),
     getListFields(service.internalListId),
   ])
   const connectedAccounts = (accounts ?? []).filter((a) => a.clickup_list_id)
+  // Only this service's allow-listed fields -- see service-catalog.ts for why.
+  const fields = service.fieldIds
+    .map((id) => allFields.find((f) => f.id === id))
+    .filter((f) => f !== undefined)
 
   return (
     <div className="p-8">
