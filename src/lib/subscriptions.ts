@@ -13,6 +13,8 @@ export async function upsertSubscriptionFromStripe(sub: Stripe.Subscription) {
   const priceId: string | null = price?.id ?? null
   const productId =
     price && typeof price.product === 'string' ? price.product : price?.product?.id
+  const amountCents: number | null = price?.unit_amount ?? null
+  const interval: string | null = price?.recurring?.interval ?? null
 
   let productName: string | null = null
   let onboardingUrl: string | null = null
@@ -37,6 +39,8 @@ export async function upsertSubscriptionFromStripe(sub: Stripe.Subscription) {
       stripe_customer_id:
         typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
       stripe_price_id: priceId,
+      amount_cents: amountCents,
+      interval,
       product_name: productName,
       status: sub.status,
       current_period_end: periodEnd

@@ -4,8 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { Logo } from '@/components/logo'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
+import { calculateMrrCents, formatMoney } from '@/lib/mrr'
 import { signout } from '../login/actions'
-import { setAgencyArchived } from './actions'
+import { setAgencyArchived, syncSubscriptionAmounts } from './actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
 
@@ -26,7 +27,9 @@ export default async function AdminPage() {
       .select('id, name, stripe_customer_id, archived, created_at')
       .order('created_at'),
     admin.from('accounts').select('id, agency_id, name, website').order('created_at'),
-    admin.from('subscriptions').select('account_id, agency_id, product_name, status'),
+    admin
+      .from('subscriptions')
+      .select('account_id, agency_id, product_name, status, amount_cents, interval'),
     admin.from('agency_users').select('user_id, agency_id'),
   ])
 
@@ -78,6 +81,18 @@ export default async function AdminPage() {
   }
 
   const activeCount = subs.filter((s) => s.status && ACTIVE.has(s.status)).length
+  const totalMrrCents = calculateMrrCents(subs)
+  const needsAmountSync = subs.some(
+    (s) => s.status && ACTIVE.has(s.status) && s.amount_cents == null
+  )
+
+  const subsByAgency = new Map<string, typeof subs>()
+  for (const s of subs) {
+    if (!s.agency_id) continue
+    const list = subsByAgency.get(s.agency_id) ?? []
+    list.push(s)
+    subsByAgency.set(s.agency_id, list)
+  }
 
   return (
     <main className="min-h-screen">
@@ -133,8 +148,9 @@ export default async function AdminPage() {
 
       <section className="mx-auto max-w-5xl p-6">
         {/* Summary tiles */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
+            { label: 'MRR', value: formatMoney(totalMrrCents) },
             { label: 'Agencies', value: visibleAgencies.length },
             { label: 'Client accounts', value: accounts.length },
             { label: 'Active subscriptions', value: activeCount },
@@ -146,11 +162,23 @@ export default async function AdminPage() {
           ))}
         </div>
 
+        {needsAmountSync && (
+          <form action={syncSubscriptionAmounts} className="mt-3">
+            <p className="text-xs text-gray-400">
+              Some subscriptions are missing price data, so MRR may be understated.{' '}
+              <button className="underline underline-offset-2 hover:text-gray-600">
+                Sync amounts from Stripe
+              </button>
+            </p>
+          </form>
+        )}
+
         {/* Per-agency breakdown */}
         <div className="mt-8 space-y-6">
           {visibleAgencies.map((agency) => {
             const agencyAccounts = accountsByAgency.get(agency.id) ?? []
             const email = emailByAgency.get(agency.id)
+            const agencyMrrCents = calculateMrrCents(subsByAgency.get(agency.id) ?? [])
             return (
               <div key={agency.id} className="overflow-hidden rounded-xl bg-white ring-1 ring-[#ece7d8]">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
@@ -166,6 +194,9 @@ export default async function AdminPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-900">
+                      {formatMoney(agencyMrrCents)}/mo
+                    </span>
                     <span className="text-sm text-gray-500">
                       {agencyAccounts.length} account{agencyAccounts.length === 1 ? '' : 's'}
                     </span>
