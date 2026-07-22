@@ -34,6 +34,12 @@ export function AgencySidebar({
       >
         + Add new account
       </Link>
+      <Link
+        href="/dashboard/request"
+        className="mt-2 border border-[#e7e2d3] px-3 py-2.5 text-center text-sm font-semibold text-gray-900 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+      >
+        + Request service
+      </Link>
 
       <nav className="mt-6 space-y-1">
         <Link href="/dashboard" className={navCls(pathname === '/dashboard')}>

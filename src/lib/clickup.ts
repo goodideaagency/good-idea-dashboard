@@ -161,6 +161,75 @@ export async function getTaskListId(taskId: string): Promise<string | null> {
   }
 }
 
+// One question on an intake form -- backed by a ClickUp List's Custom Field,
+// fetched dynamically so the team can add/edit/remove questions in ClickUp
+// without any code change on our end.
+export type ClickUpFieldOption = { id: string; name: string }
+export type ClickUpField = {
+  id: string
+  name: string
+  type: string // 'text' | 'url' | 'number' | 'date' | 'checkbox' | 'drop_down' | ...
+  options: ClickUpFieldOption[]
+}
+
+// The intake-question schema for a service's List (its Custom Fields).
+export async function getListFields(listId: string): Promise<ClickUpField[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/list/${listId}/field`, { headers: headers() })
+    if (!res.ok) return []
+    const data = await res.json()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data.fields ?? []).map((f: any) => ({
+      id: f.id,
+      name: f.name,
+      type: f.type,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      options: (f.type_config?.options ?? []).map((o: any) => ({ id: o.id, name: o.name })),
+    }))
+  } catch {
+    return []
+  }
+}
+
+// Creates a task in a List, optionally with a starting status and Custom
+// Field answers (from a submitted intake form). Returns null on failure.
+export async function createTask(
+  listId: string,
+  name: string,
+  opts: { status?: string; customFields?: { id: string; value: unknown }[] } = {}
+): Promise<{ id: string; url: string } | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/list/${listId}/task`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        ...(opts.status ? { status: opts.status } : {}),
+        ...(opts.customFields ? { custom_fields: opts.customFields } : {}),
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return { id: data.id, url: data.url }
+  } catch {
+    return null
+  }
+}
+
+// Links two tasks together (ClickUp's native task-relationship feature) --
+// used to connect a client-facing task to its paired internal task.
+export async function linkTasks(taskIdA: string, taskIdB: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskIdA}/link/${taskIdB}`, {
+      method: 'POST',
+      headers: headers(),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // Posts a comment to a ClickUp task. Always goes through the app's single
 // service token, so `authorLabel` (the platform user's own identity) is
 // posted in bold on its own line above the message -- otherwise every
