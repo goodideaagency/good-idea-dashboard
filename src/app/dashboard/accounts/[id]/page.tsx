@@ -5,10 +5,10 @@ import { listInvoicesForSubscription } from '@/lib/transactions'
 import { listPlansForAgency } from '@/lib/plans'
 import { AccountServices, type AccountService } from '@/components/account-services'
 import { AddServiceForm } from '@/components/add-service-form'
-import { ProjectTasks } from '@/components/project-tasks'
-import { listTasksForAccount } from '@/lib/clickup'
+import { ClickUpStatusPill } from '@/components/clickup-status-pill'
+import { listTaskSummariesForAccount } from '@/lib/clickup'
 import { addServiceAndCheckout } from '../../actions'
-import { updateSubscriptionState, postAccountTaskComment } from './actions'
+import { updateSubscriptionState } from './actions'
 
 type AccountRow = {
   id: string
@@ -46,7 +46,7 @@ export default async function AccountDetailPage({
     .eq('id', id)
     .maybeSingle<AccountRow>()
 
-  if (!account) redirect('/dashboard')
+  if (!account) redirect('/dashboard/clients')
 
   // The agency's name drives which plans are offered for the new service.
   const { data: membership } = await supabase
@@ -61,8 +61,10 @@ export default async function AccountDetailPage({
     (a.created_at ?? '').localeCompare(b.created_at ?? '')
   )
 
-  const tasks = account.clickup_list_id
-    ? await listTasksForAccount(account.clickup_list_id)
+  // Lightweight only -- no comments/attachments here, this page is billing-only.
+  // Full project details/comments live at /dashboard/projects/[taskId].
+  const projectTasks = account.clickup_list_id
+    ? await listTaskSummariesForAccount(account.clickup_list_id)
     : []
 
   // Fetch each service's transaction history (one Stripe call per subscription).
@@ -83,7 +85,7 @@ export default async function AccountDetailPage({
           {account.website && <p className="mt-1 text-sm text-gray-500">{account.website}</p>}
         </div>
         <Link
-          href="/dashboard"
+          href="/dashboard/clients"
           className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
           ← Back to accounts
@@ -91,15 +93,23 @@ export default async function AccountDetailPage({
       </div>
 
       <div className="mx-auto mt-8 max-w-3xl">
-        {account.clickup_list_id && (
+        {projectTasks.length > 0 && (
           <>
             <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Project</p>
-            <div className="mt-4">
-              <ProjectTasks
-                tasks={tasks}
-                accountId={account.id}
-                commentAction={postAccountTaskComment}
-              />
+            <div className="mt-4 space-y-3">
+              {projectTasks.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/dashboard/projects/${t.id}`}
+                  className="flex items-center justify-between bg-white p-4 ring-1 ring-[#ece7d8] hover:bg-gray-50"
+                >
+                  <span className="text-sm font-medium text-gray-900">{t.name}</span>
+                  <span className="flex items-center gap-3">
+                    <ClickUpStatusPill status={t.status} color={t.statusColor} />
+                    <span className="text-gray-300">›</span>
+                  </span>
+                </Link>
+              ))}
             </div>
           </>
         )}

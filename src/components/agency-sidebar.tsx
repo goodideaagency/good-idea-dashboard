@@ -37,7 +37,21 @@ export function AgencySidebar({
 
       <nav className="mt-6 space-y-1">
         <Link href="/dashboard" className={navCls(pathname === '/dashboard')}>
-          Your Accounts
+          Dashboard
+        </Link>
+        <Link
+          href="/dashboard/projects"
+          className={navCls(pathname.startsWith('/dashboard/projects'))}
+        >
+          Projects
+        </Link>
+        <Link
+          href="/dashboard/clients"
+          className={navCls(
+            pathname.startsWith('/dashboard/clients') || pathname.startsWith('/dashboard/accounts')
+          )}
+        >
+          My Clients
         </Link>
         <Link
           href="/dashboard/transactions"

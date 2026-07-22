@@ -1,4 +1,5 @@
 import type { ClickUpTask, CommentSegment } from '@/lib/clickup'
+import { ClickUpStatusPill } from './clickup-status-pill'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -69,12 +70,7 @@ export function ProjectTasks({
         <div key={task.id} className="bg-white p-5 ring-1 ring-[#ece7d8]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-medium text-gray-900">{task.name}</p>
-            <span
-              className="inline-block rounded-full px-3 py-1 font-mono text-xs uppercase tracking-wide text-white"
-              style={{ backgroundColor: task.statusColor }}
-            >
-              {task.status}
-            </span>
+            <ClickUpStatusPill status={task.status} color={task.statusColor} />
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">

@@ -29,7 +29,7 @@ export default async function AddAccountPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold text-gray-900">Add a service</h1>
         <Link
-          href="/dashboard"
+          href="/dashboard/clients"
           className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
           ← Back

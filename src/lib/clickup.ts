@@ -25,19 +25,25 @@ export type ClickUpAttachment = {
   url: string
 }
 
-export type ClickUpTask = {
+// The lightweight fields needed for list/table views (Dashboard, Projects) —
+// no comments or attachments, so fetching many of these at once stays cheap.
+export type ClickUpTaskSummary = {
   id: string
   name: string
   status: string
   statusColor: string
   dueDate: string | null // ISO
   url: string
+  listId: string
+}
+
+export type ClickUpTask = ClickUpTaskSummary & {
   comments: ClickUpComment[]
   attachments: ClickUpAttachment[]
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeTask(t: any): Omit<ClickUpTask, 'comments' | 'attachments'> {
+function normalizeTask(t: any): ClickUpTaskSummary {
   return {
     id: t.id,
     name: t.name,
@@ -45,6 +51,7 @@ function normalizeTask(t: any): Omit<ClickUpTask, 'comments' | 'attachments'> {
     statusColor: t.status?.color ?? '#87909e',
     dueDate: t.due_date ? new Date(Number(t.due_date)).toISOString() : null,
     url: t.url,
+    listId: t.list?.id ?? '',
   }
 }
 
@@ -78,23 +85,21 @@ async function fetchTaskComments(taskId: string): Promise<ClickUpComment[]> {
   }))
 }
 
-async function fetchTaskDetail(taskId: string): Promise<ClickUpAttachment[]> {
-  const res = await fetch(`${BASE_URL}/task/${taskId}`, { headers: headers() })
-  if (!res.ok) return []
-  const data = await res.json()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data.attachments ?? []).map((a: any) => ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeAttachments(attachments: any[]): ClickUpAttachment[] {
+  return (attachments ?? []).map((a) => ({
     id: a.id,
     title: a.title ?? a.name ?? 'Attachment',
     url: a.url,
   }))
 }
 
-// Every task in a client's ClickUp List, with its comments and attachments —
-// what the account's dashboard "Project" section renders. One List maps to
-// one account (see accounts.clickup_list_id). Returns [] if unset or if
-// ClickUp is unreachable, so a missing/broken connection never breaks the page.
-export async function listTasksForAccount(listId: string): Promise<ClickUpTask[]> {
+// Every task in a client's ClickUp List, WITHOUT comments/attachments — for
+// list/table views (Dashboard, Projects) where fetching dozens of tasks at
+// once needs to stay cheap. Returns [] if unset or ClickUp is unreachable.
+export async function listTaskSummariesForAccount(
+  listId: string
+): Promise<ClickUpTaskSummary[]> {
   try {
     const res = await fetch(
       `${BASE_URL}/list/${listId}/task?archived=false&include_closed=true`,
@@ -102,21 +107,41 @@ export async function listTasksForAccount(listId: string): Promise<ClickUpTask[]
     )
     if (!res.ok) return []
     const data = await res.json()
-    const tasks = data.tasks ?? []
-
-    return await Promise.all(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tasks.map(async (t: any) => {
-        const base = normalizeTask(t)
-        const [comments, attachments] = await Promise.all([
-          fetchTaskComments(t.id),
-          fetchTaskDetail(t.id),
-        ])
-        return { ...base, comments, attachments }
-      })
-    )
+    return (data.tasks ?? []).map(normalizeTask)
   } catch {
     return []
+  }
+}
+
+// Every task in a client's ClickUp List, WITH comments and attachments — what
+// an account's Project section used to render inline. One List maps to one
+// account (see accounts.clickup_list_id).
+export async function listTasksForAccount(listId: string): Promise<ClickUpTask[]> {
+  const summaries = await listTaskSummariesForAccount(listId)
+  return Promise.all(
+    summaries.map(async (base) => {
+      const [comments, detail] = await Promise.all([
+        fetchTaskComments(base.id),
+        fetch(`${BASE_URL}/task/${base.id}`, { headers: headers() })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ])
+      return { ...base, comments, attachments: normalizeAttachments(detail?.attachments) }
+    })
+  )
+}
+
+// A single task by id, with comments and attachments — the Projects detail
+// page. Returns null if the task doesn't exist or ClickUp is unreachable.
+export async function getTask(taskId: string): Promise<ClickUpTask | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}`, { headers: headers() })
+    if (!res.ok) return null
+    const data = await res.json()
+    const comments = await fetchTaskComments(taskId)
+    return { ...normalizeTask(data), comments, attachments: normalizeAttachments(data.attachments) }
+  } catch {
+    return null
   }
 }
 
