@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -11,7 +10,7 @@ export default async function AdminTransactionsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) redirect('/admin/login')
   if (!(await isAdmin(user.email))) redirect('/dashboard')
 
   const admin = createAdminClient()
@@ -30,26 +29,17 @@ export default async function AdminTransactionsPage() {
   const txns = await listAllInvoices()
 
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-gray-900">All transactions</h1>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-        >
-          ← Back to admin
-        </Link>
-      </header>
-
-      <section className="mx-auto max-w-5xl p-6">
-        <p className="text-sm text-gray-500">Every payment across all agencies.</p>
+    <div className="p-8">
+      <h1 className="text-3xl font-semibold text-gray-900">All transactions</h1>
+      <p className="mt-1 text-sm text-gray-500">Every payment across all agencies.</p>
+      <div className="mt-6 max-w-5xl">
         <TransactionsTable
           txns={txns}
           agencyFor={(subId) => (subId ? agencyBySub.get(subId) : undefined)}
           accountFor={(subId) => (subId ? acctBySub.get(subId) : undefined)}
           emptyText="No transactions yet."
         />
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }

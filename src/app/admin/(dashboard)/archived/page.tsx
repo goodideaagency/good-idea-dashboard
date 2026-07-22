@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -10,7 +9,7 @@ export default async function ArchivedAgenciesPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) redirect('/admin/login')
   const role = await getAdminRole(user.email)
   if (!role) redirect('/dashboard')
 
@@ -32,27 +31,19 @@ export default async function ArchivedAgenciesPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">Archived agencies</h1>
-          <p className="text-sm text-gray-500">Hidden from the main admin view. Nothing in Stripe is affected.</p>
-        </div>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-        >
-          ← Back to admin
-        </Link>
-      </header>
+    <div className="p-8">
+      <h1 className="text-3xl font-semibold text-gray-900">Archived agencies</h1>
+      <p className="mt-1 text-sm text-gray-500">
+        Hidden from the main admin view. Nothing in Stripe is affected.
+      </p>
 
-      <section className="mx-auto max-w-3xl p-6">
+      <div className="mx-auto mt-6 max-w-3xl">
         {agencies.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
+          <div className="border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
             <p className="text-sm text-gray-500">No archived agencies.</p>
           </div>
         ) : (
-          <ul className="divide-y divide-[#f0ecdf] rounded-xl bg-white ring-1 ring-[#ece7d8]">
+          <ul className="divide-y divide-[#f0ecdf] bg-white ring-1 ring-[#ece7d8]">
             {agencies.map((agency) => {
               const count = countByAgency.get(agency.id) ?? 0
               return (
@@ -71,7 +62,7 @@ export default async function ArchivedAgenciesPage() {
                   <form action={setAgencyArchived}>
                     <input type="hidden" name="agency_id" value={agency.id} />
                     <input type="hidden" name="archived" value="false" />
-                    <button className="rounded-lg bg-[#f7cf4a] px-3 py-1.5 text-sm font-semibold text-black hover:brightness-95 font-mono uppercase tracking-wide">
+                    <button className="bg-[#f7cf4a] px-3 py-1.5 text-sm font-semibold text-black hover:brightness-95 font-mono uppercase tracking-wide">
                       Unarchive
                     </button>
                   </form>
@@ -80,7 +71,7 @@ export default async function ArchivedAgenciesPage() {
             })}
           </ul>
         )}
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }

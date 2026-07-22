@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
@@ -20,7 +19,7 @@ export default async function ProductsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) redirect('/admin/login')
   if (!(await isAdmin(user.email))) redirect('/dashboard')
 
   const admin = createAdminClient()
@@ -54,21 +53,11 @@ export default async function ProductsPage() {
   )
 
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">Products</h1>
-          <p className="text-sm text-gray-500">Choose which plans appear in the billing platform</p>
-        </div>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-        >
-          ← Back to admin
-        </Link>
-      </header>
+    <div className="p-8">
+      <h1 className="text-3xl font-semibold text-gray-900">Products</h1>
+      <p className="mt-1 text-sm text-gray-500">Choose which plans appear in the billing platform</p>
 
-      <section className="mx-auto max-w-3xl p-6">
+      <div className="mx-auto mt-6 max-w-3xl">
         <p className="text-sm text-gray-500">
           A product only appears in an agency&apos;s &ldquo;Add account&rdquo; plan list if you show it
           here. Turn everything off to hide it completely.
@@ -76,7 +65,7 @@ export default async function ProductsPage() {
 
         <div className="mt-5 space-y-4">
           {products.length === 0 && (
-            <div className="rounded-xl border border-dashed border-[#e7e2d3] bg-white p-8 text-center text-sm text-gray-500">
+            <div className="border border-dashed border-[#e7e2d3] bg-white p-8 text-center text-sm text-gray-500">
               No active recurring products found in Stripe.
             </div>
           )}
@@ -102,7 +91,7 @@ export default async function ProductsPage() {
               <form
                 key={product.id}
                 action={updateProductVisibility}
-                className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]"
+                className="bg-white p-5 ring-1 ring-[#ece7d8]"
               >
                 <input type="hidden" name="product_id" value={product.id} />
 
@@ -153,21 +142,21 @@ export default async function ProductsPage() {
                     name="onboarding_url"
                     defaultValue={meta.onboarding_url ?? ''}
                     placeholder="https://itsgoodidea.com/onboarding"
-                    className="mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+                    className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
                   />
                   <p className="mt-1 text-xs text-gray-400">
                     Where buyers land after paying for this plan. Leave blank to send them to their dashboard.
                   </p>
                 </div>
 
-                <button className="mt-4 rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+                <button className="mt-4 bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
                   Save
                 </button>
               </form>
             )
           })}
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }

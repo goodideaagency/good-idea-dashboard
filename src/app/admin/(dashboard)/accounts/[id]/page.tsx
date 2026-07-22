@@ -32,7 +32,7 @@ export default async function AdminAccountDetailPage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) redirect('/admin/login')
   if (!(await isAdmin(user.email))) redirect('/dashboard')
 
   const admin = createAdminClient()
@@ -61,33 +61,35 @@ export default async function AdminAccountDetailPage({
   )
 
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
+    <div className="p-8">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">{account.name}</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-3xl font-semibold text-gray-900">{account.name}</h1>
+          <p className="mt-1 text-sm text-gray-500">
             {account.agencies?.name ?? 'Unknown agency'}
             {account.website ? ` · ${account.website}` : ''}
           </p>
         </div>
         <Link
           href="/admin"
-          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+          className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
-          ← Back to admin
+          ← Back to agencies
         </Link>
-      </header>
+      </div>
 
-      <section className="mx-auto max-w-3xl p-6">
-        <h2 className="mb-4 text-base font-semibold text-gray-900">
+      <div className="mx-auto mt-8 max-w-3xl">
+        <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
           Services{services.length > 0 ? ` (${services.length})` : ''}
-        </h2>
-        <AccountServices
-          accountId={account.id}
-          services={services}
-          action={updateSubscriptionStateAdmin}
-        />
-      </section>
-    </main>
+        </p>
+        <div className="mt-4">
+          <AccountServices
+            accountId={account.id}
+            services={services}
+            action={updateSubscriptionStateAdmin}
+          />
+        </div>
+      </div>
+    </div>
   )
 }

@@ -24,7 +24,7 @@ export function InviteResult({
   }
 
   return (
-    <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4">
+    <div className="mt-6 border border-green-200 bg-green-50 p-4">
       <p className="text-sm font-semibold text-green-900">Agency “{agency}” created ✓</p>
       <p className="mt-1 text-sm text-green-800">
         Send this link to <span className="font-medium">{email}</span> so they can set their
@@ -35,12 +35,12 @@ export function InviteResult({
           readOnly
           value={url}
           onFocus={(e) => e.currentTarget.select()}
-          className="flex-1 rounded-lg border border-green-300 bg-white px-3 py-2 font-mono text-xs text-gray-800 outline-none"
+          className="flex-1 border border-green-300 bg-white px-3 py-2 font-mono text-xs text-gray-800 outline-none"
         />
         <button
           type="button"
           onClick={copy}
-          className="rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95"
+          className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95"
         >
           {copied ? 'Copied' : 'Copy'}
         </button>
