@@ -38,7 +38,10 @@ export function AdminSidebar({
       </Link>
 
       <nav className="mt-6 space-y-1">
-        <Link href="/admin" className={navCls(pathname === '/admin')}>
+        <Link
+          href="/admin"
+          className={navCls(pathname === '/admin' || pathname.startsWith('/admin/agencies'))}
+        >
           Agencies
         </Link>
         <Link
@@ -51,13 +54,7 @@ export function AdminSidebar({
           href="/admin/transactions"
           className={navCls(pathname.startsWith('/admin/transactions'))}
         >
-          All transactions
-        </Link>
-        <Link
-          href="/admin/archived"
-          className={navCls(pathname.startsWith('/admin/archived'))}
-        >
-          Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
+          All Transactions
         </Link>
         {isSuperadmin && (
           <Link
@@ -67,6 +64,12 @@ export function AdminSidebar({
             Admins
           </Link>
         )}
+        <Link
+          href="/admin/archived"
+          className={navCls(pathname.startsWith('/admin/archived'))}
+        >
+          Archived Accounts{archivedCount > 0 ? ` (${archivedCount})` : ''}
+        </Link>
       </nav>
 
       <div className="mt-auto space-y-3 border-t border-[#ece7d8] pt-4">
