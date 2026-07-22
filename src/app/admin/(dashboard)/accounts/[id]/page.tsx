@@ -5,12 +5,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/admin-auth'
 import { listInvoicesForSubscription } from '@/lib/transactions'
 import { AccountServices, type AccountService } from '@/components/account-services'
-import { updateSubscriptionStateAdmin } from './actions'
+import { ProjectTasks } from '@/components/project-tasks'
+import { listTasksForAccount } from '@/lib/clickup'
+import { updateSubscriptionStateAdmin, updateAccountClickupList } from './actions'
 
 type AccountRow = {
   id: string
   name: string
   website: string | null
+  clickup_list_id: string | null
   agencies: { name?: string } | null
   subscriptions: {
     stripe_subscription_id: string | null
@@ -39,7 +42,7 @@ export default async function AdminAccountDetailPage({
   const { data: account } = await admin
     .from('accounts')
     .select(
-      'id, name, website, agencies(name), subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end, created_at)'
+      'id, name, website, clickup_list_id, agencies(name), subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end, created_at)'
     )
     .eq('id', id)
     .maybeSingle<AccountRow>()
@@ -49,6 +52,10 @@ export default async function AdminAccountDetailPage({
   const subs = [...(account.subscriptions ?? [])].sort((a, b) =>
     (a.created_at ?? '').localeCompare(b.created_at ?? '')
   )
+
+  const tasks = account.clickup_list_id
+    ? await listTasksForAccount(account.clickup_list_id)
+    : []
 
   // Fetch each service's transaction history (one Stripe call per subscription).
   const services: AccountService[] = await Promise.all(
@@ -79,7 +86,39 @@ export default async function AdminAccountDetailPage({
       </div>
 
       <div className="mx-auto mt-8 max-w-3xl">
-        <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
+        <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Project</p>
+        <form
+          action={updateAccountClickupList}
+          className="mt-4 flex flex-wrap items-end gap-3 bg-white p-5 ring-1 ring-[#ece7d8]"
+        >
+          <input type="hidden" name="account_id" value={account.id} />
+          <div className="flex-1">
+            <label
+              className="block text-xs uppercase tracking-wide text-gray-400"
+              htmlFor="clickup_list_id"
+            >
+              ClickUp List ID
+            </label>
+            <input
+              id="clickup_list_id"
+              name="clickup_list_id"
+              type="text"
+              defaultValue={account.clickup_list_id ?? ''}
+              placeholder="e.g. 901418306348"
+              className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+            />
+          </div>
+          <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+            Save
+          </button>
+        </form>
+        {account.clickup_list_id && (
+          <div className="mt-4">
+            <ProjectTasks tasks={tasks} />
+          </div>
+        )}
+
+        <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
           Services{services.length > 0 ? ` (${services.length})` : ''}
         </p>
         <div className="mt-4">

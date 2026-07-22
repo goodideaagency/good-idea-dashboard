@@ -5,6 +5,8 @@ import { listInvoicesForSubscription } from '@/lib/transactions'
 import { listPlansForAgency } from '@/lib/plans'
 import { AccountServices, type AccountService } from '@/components/account-services'
 import { AddServiceForm } from '@/components/add-service-form'
+import { ProjectTasks } from '@/components/project-tasks'
+import { listTasksForAccount } from '@/lib/clickup'
 import { addServiceAndCheckout } from '../../actions'
 import { updateSubscriptionState } from './actions'
 
@@ -12,6 +14,7 @@ type AccountRow = {
   id: string
   name: string
   website: string | null
+  clickup_list_id: string | null
   subscriptions: {
     stripe_subscription_id: string | null
     product_name: string | null
@@ -38,7 +41,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from('accounts')
     .select(
-      'id, name, website, subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end, created_at)'
+      'id, name, website, clickup_list_id, subscriptions(stripe_subscription_id, product_name, status, cancel_at_period_end, current_period_end, created_at)'
     )
     .eq('id', id)
     .maybeSingle<AccountRow>()
@@ -57,6 +60,10 @@ export default async function AccountDetailPage({
   const subs = [...(account.subscriptions ?? [])].sort((a, b) =>
     (a.created_at ?? '').localeCompare(b.created_at ?? '')
   )
+
+  const tasks = account.clickup_list_id
+    ? await listTasksForAccount(account.clickup_list_id)
+    : []
 
   // Fetch each service's transaction history (one Stripe call per subscription).
   const services: AccountService[] = await Promise.all(
@@ -84,7 +91,16 @@ export default async function AccountDetailPage({
       </div>
 
       <div className="mx-auto mt-8 max-w-3xl">
-        <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
+        {account.clickup_list_id && (
+          <>
+            <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Project</p>
+            <div className="mt-4">
+              <ProjectTasks tasks={tasks} />
+            </div>
+          </>
+        )}
+
+        <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
           Services{services.length > 0 ? ` (${services.length})` : ''}
         </p>
         <div className="mt-4">
