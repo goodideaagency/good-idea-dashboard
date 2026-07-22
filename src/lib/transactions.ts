@@ -30,23 +30,36 @@ function normalize(inv: any): Txn {
   }
 }
 
-// Every transaction for one agency (their single Stripe customer).
+// Every transaction for one agency (their single Stripe customer). Returns []
+// on failure (e.g. a stale/wrong-mode id) so one bad lookup never crashes the page.
 export async function listInvoicesForCustomer(customerId: string, limit = 100): Promise<Txn[]> {
-  const res = await stripe.invoices.list({ customer: customerId, limit })
-  return res.data.map(normalize)
+  try {
+    const res = await stripe.invoices.list({ customer: customerId, limit })
+    return res.data.map(normalize)
+  } catch {
+    return []
+  }
 }
 
-// Transactions for a single subscription.
+// Transactions for a single subscription. Same failure handling as above.
 export async function listInvoicesForSubscription(
   subscriptionId: string,
   limit = 100
 ): Promise<Txn[]> {
-  const res = await stripe.invoices.list({ subscription: subscriptionId, limit })
-  return res.data.map(normalize)
+  try {
+    const res = await stripe.invoices.list({ subscription: subscriptionId, limit })
+    return res.data.map(normalize)
+  } catch {
+    return []
+  }
 }
 
 // Every transaction across the whole Stripe account (admin view).
 export async function listAllInvoices(limit = 100): Promise<Txn[]> {
-  const res = await stripe.invoices.list({ limit })
-  return res.data.map(normalize)
+  try {
+    const res = await stripe.invoices.list({ limit })
+    return res.data.map(normalize)
+  } catch {
+    return []
+  }
 }
