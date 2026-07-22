@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { listInvoicesForCustomer } from '@/lib/transactions'
@@ -41,25 +40,16 @@ export default async function TransactionsPage() {
     : []
 
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-gray-900">Transactions</h1>
-        <Link
-          href="/dashboard"
-          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-        >
-          ← Back to dashboard
-        </Link>
-      </header>
-
-      <section className="mx-auto max-w-3xl p-6">
-        <p className="text-sm text-gray-500">Every payment across all your accounts.</p>
+    <div className="p-8">
+      <h1 className="text-3xl font-semibold text-gray-900">Transactions</h1>
+      <p className="mt-2 text-sm text-gray-500">Every payment across all your accounts.</p>
+      <div className="mt-6 max-w-4xl">
         <TransactionsTable
           txns={txns}
           accountFor={(subId) => (subId ? nameBySub.get(subId) : undefined)}
           emptyText="No payments yet. They'll appear here after the first subscription is charged."
         />
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }

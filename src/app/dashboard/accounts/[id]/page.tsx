@@ -69,33 +69,35 @@ export default async function AccountDetailPage({
   )
 
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
+    <div className="p-8">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">{account.name}</h1>
-          {account.website && <p className="text-sm text-gray-500">{account.website}</p>}
+          <h1 className="text-3xl font-semibold text-gray-900">{account.name}</h1>
+          {account.website && <p className="mt-1 text-sm text-gray-500">{account.website}</p>}
         </div>
         <Link
           href="/dashboard"
           className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
-          ← Back to dashboard
+          ← Back to accounts
         </Link>
-      </header>
+      </div>
 
-      <section className="mx-auto max-w-3xl p-6">
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-base font-semibold text-gray-900">
-            Services{services.length > 0 ? ` (${services.length})` : ''}
-          </h2>
+      <div className="mx-auto mt-8 max-w-3xl">
+        <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
+          Services{services.length > 0 ? ` (${services.length})` : ''}
+        </p>
+        <div className="mt-4">
+          <AccountServices
+            accountId={account.id}
+            services={services}
+            action={updateSubscriptionState}
+          />
         </div>
-        <AccountServices
-          accountId={account.id}
-          services={services}
-          action={updateSubscriptionState}
-        />
 
-        <h2 className="mt-10 text-base font-semibold text-gray-900">Add another service</h2>
+        <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
+          Add another service
+        </p>
         <div className="mt-4 rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
           <AddServiceForm
             action={addServiceAndCheckout}
@@ -104,7 +106,7 @@ export default async function AccountDetailPage({
             fixedAccountId={account.id}
           />
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }

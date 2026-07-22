@@ -1,12 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
-import { listPlansForAgency } from '@/lib/plans'
-import { AddServiceForm } from '@/components/add-service-form'
 import { StatusBadges, planLabel } from '@/components/status-badge'
-import { signout } from '../login/actions'
-import { addServiceAndCheckout } from './actions'
 
 type AccountRow = {
   id: string
@@ -31,7 +26,7 @@ export default async function DashboardPage() {
 
   const { data: membership } = await supabase
     .from('agency_users')
-    .select('agency_id, agencies(name)')
+    .select('agencies(name)')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -46,89 +41,64 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: true })
     .returns<AccountRow[]>()
 
-  const plans = await listPlansForAgency(agencyName)
-  const accountOptions = (accounts ?? []).map((a) => ({ id: a.id, name: a.name }))
+  const accountList = accounts ?? []
 
   return (
-    <main className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-[#ece7d8] bg-white px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Logo height={20} />
-          <div className="h-6 w-px bg-[#ece7d8]" />
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">{agencyName}</h1>
-            <p className="text-sm text-gray-500">{user.email}</p>
-          </div>
+    <div className="p-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <h1 className="text-4xl font-semibold text-gray-900">Welcome back, {agencyName}!</h1>
+        <div className="text-right">
+          <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
+            Total accounts
+          </p>
+          <p className="text-3xl font-semibold text-gray-900">{accountList.length}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard/transactions"
-            className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-          >
-            Transactions
-          </Link>
-          <form action={signout}>
-            <button className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
-              Sign out
-            </button>
-          </form>
+      </div>
+
+      <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
+        Managed accounts
+      </p>
+
+      {accountList.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
+          <p className="text-sm text-gray-500">
+            No accounts yet.{' '}
+            <Link href="/dashboard/add" className="underline underline-offset-2">
+              Add your first one.
+            </Link>
+          </p>
         </div>
-      </header>
-
-      <section className="mx-auto max-w-3xl p-6">
-        <h2 className="text-base font-semibold text-gray-900">Add a service</h2>
-
-        <div className="mt-4 rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
-          <AddServiceForm
-            action={addServiceAndCheckout}
-            plans={plans}
-            accounts={accountOptions}
-          />
+      ) : (
+        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {accountList.map((a) => {
+            const subs = a.subscriptions ?? []
+            return (
+              <div
+                key={a.id}
+                className="flex flex-col justify-between rounded-2xl bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
+              >
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">{a.name}</p>
+                  <p className="mt-1 text-sm text-gray-600">{planLabel(subs)}</p>
+                  <div className="mt-4">
+                    {subs.length > 0 ? (
+                      <StatusBadges statuses={subs.map((s) => s.status)} />
+                    ) : (
+                      <span className="text-xs text-gray-400">No subscription yet</span>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  href={`/dashboard/accounts/${a.id}`}
+                  className="mt-8 flex items-center justify-center gap-2 rounded-lg bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+                >
+                  Manage <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            )
+          })}
         </div>
-
-        <h2 className="mt-8 text-base font-semibold text-gray-900">Your accounts</h2>
-        {accounts && accounts.length > 0 ? (
-          <ul className="mt-4 divide-y divide-[#f0ecdf] rounded-xl bg-white ring-1 ring-[#ece7d8]">
-            {accounts.map((a) => {
-              const subs = a.subscriptions ?? []
-              return (
-                <li key={a.id}>
-                  <Link
-                    href={`/dashboard/accounts/${a.id}`}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{a.name}</p>
-                      {a.website && (
-                        <p className="text-sm text-gray-500">{a.website}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-right">
-                      <div>
-                        {subs.length > 0 ? (
-                          <>
-                            <p className="text-sm text-gray-900">{planLabel(subs)}</p>
-                            <StatusBadges statuses={subs.map((s) => s.status)} />
-                          </>
-                        ) : (
-                          <span className="text-xs text-gray-400">No subscription yet</span>
-                        )}
-                      </div>
-                      <span className="text-gray-300">›</span>
-                    </div>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <div className="mt-4 rounded-xl border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
-            <p className="text-sm text-gray-500">
-              No accounts yet. Add your first one above.
-            </p>
-          </div>
-        )}
-      </section>
-    </main>
+      )}
+    </div>
   )
 }

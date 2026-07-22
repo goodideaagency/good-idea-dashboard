@@ -8,7 +8,9 @@ export function StatusBadge({ status }: { status: string }) {
       ? 'bg-red-100 text-red-800'
       : 'bg-gray-100 text-gray-700'
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+    <span
+      className={`inline-block rounded-full px-3 py-1 font-mono text-xs uppercase tracking-wide ${cls}`}
+    >
       {status}
     </span>
   )
