@@ -10,6 +10,21 @@ import { setAgencyArchived, syncSubscriptionAmounts } from './actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
 
+function StatusBadge({ status }: { status: string }) {
+  const green = ACTIVE.has(status)
+  const red = ['past_due', 'unpaid', 'incomplete', 'canceled'].includes(status)
+  const cls = green
+    ? 'bg-green-100 text-green-800'
+    : red
+      ? 'bg-red-100 text-red-800'
+      : 'bg-gray-100 text-gray-700'
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+      {status}
+    </span>
+  )
+}
+
 export default async function AdminPage() {
   const supabase = await createClient()
   const {
@@ -223,16 +238,17 @@ export default async function AdminPage() {
                     <thead>
                       <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
                         <th className="px-5 py-2 font-medium">Account</th>
-                        <th className="px-5 py-2 font-medium">Services</th>
-                        <th className="px-5 py-2 font-medium">Active</th>
+                        <th className="px-5 py-2 font-medium">Plan</th>
+                        <th className="px-5 py-2 font-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f2ede0]">
                       {agencyAccounts.map((acc) => {
                         const accSubs = subsByAccount.get(acc.id) ?? []
-                        const accActive = accSubs.filter(
-                          (s) => s.status && ACTIVE.has(s.status)
-                        ).length
+                        const distinctStatuses = [
+                          ...new Set(accSubs.map((s) => s.status ?? 'none')),
+                        ]
+                        const allActive = distinctStatuses.every((s) => ACTIVE.has(s))
                         return (
                           <tr key={acc.id}>
                             <td className="px-5 py-3">
@@ -249,13 +265,21 @@ export default async function AdminPage() {
                             <td className="px-5 py-3 text-gray-700">
                               {accSubs.length === 0
                                 ? '—'
-                                : `${accSubs.length} service${accSubs.length === 1 ? '' : 's'}`}
+                                : accSubs.length === 1
+                                  ? (accSubs[0].product_name ?? '—')
+                                  : `${accSubs.length} plans`}
                             </td>
-                            <td className="px-5 py-3 text-gray-700">
+                            <td className="px-5 py-3">
                               {accSubs.length === 0 ? (
                                 <span className="text-xs text-gray-400">No subscription</span>
+                              ) : allActive ? (
+                                <StatusBadge status="active" />
                               ) : (
-                                `${accActive} active`
+                                <div className="flex flex-wrap gap-1">
+                                  {distinctStatuses.map((s) => (
+                                    <StatusBadge key={s} status={s} />
+                                  ))}
+                                </div>
                               )}
                             </td>
                           </tr>
