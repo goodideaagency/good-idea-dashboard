@@ -94,3 +94,33 @@ export async function listTasksForAccount(listId: string): Promise<ClickUpTask[]
     return []
   }
 }
+
+// Which List a task belongs to — used to verify a client is only ever
+// commenting on a task under their OWN connected List, not one they guessed.
+export async function getTaskListId(taskId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}`, { headers: headers() })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.list?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+// Posts a comment to a ClickUp task. Always goes through the app's single
+// service token, so `authorLabel` (the platform user's own identity) is
+// prefixed onto the text -- otherwise every comment would appear to come from
+// whichever account owns the token, not the client who actually wrote it.
+export async function postTaskComment(taskId: string, authorLabel: string, text: string) {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}/comment`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment_text: `${authorLabel}: ${text}` }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}

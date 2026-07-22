@@ -8,7 +8,7 @@ import { AddServiceForm } from '@/components/add-service-form'
 import { ProjectTasks } from '@/components/project-tasks'
 import { listTasksForAccount } from '@/lib/clickup'
 import { addServiceAndCheckout } from '../../actions'
-import { updateSubscriptionState } from './actions'
+import { updateSubscriptionState, postAccountTaskComment } from './actions'
 
 type AccountRow = {
   id: string
@@ -95,7 +95,11 @@ export default async function AccountDetailPage({
           <>
             <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Project</p>
             <div className="mt-4">
-              <ProjectTasks tasks={tasks} />
+              <ProjectTasks
+                tasks={tasks}
+                accountId={account.id}
+                commentAction={postAccountTaskComment}
+              />
             </div>
           </>
         )}
