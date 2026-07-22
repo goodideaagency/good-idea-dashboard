@@ -30,7 +30,7 @@ export default async function RequestServiceFormPage({
     supabase.from('accounts').select('id, name, clickup_list_id').order('name'),
     getListFields(service.internalListId),
   ])
-  const connectedAccounts = (accounts ?? []).filter((a) => a.clickup_list_id)
+  const profiles = accounts ?? []
   // Only this service's allow-listed fields -- see service-catalog.ts for why.
   const fields = service.fieldIds
     .map((id) => allFields.find((f) => f.id === id))
@@ -51,10 +51,12 @@ export default async function RequestServiceFormPage({
       <div className="mt-6 max-w-xl bg-white p-6 ring-1 ring-[#ece7d8]">
         {error && <p className="mb-4 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-        {connectedAccounts.length === 0 ? (
+        {profiles.length === 0 ? (
           <p className="text-sm text-gray-500">
-            None of your accounts are connected to a project yet -- ask Good Idea to connect one
-            before requesting this service.
+            You don&apos;t have any client profiles yet.{' '}
+            <Link href="/dashboard/clients/new" className="underline underline-offset-2">
+              Create one first.
+            </Link>
           </p>
         ) : (
           <form action={submitServiceRequest} className="space-y-4">
@@ -62,21 +64,28 @@ export default async function RequestServiceFormPage({
 
             <div>
               <label className="block text-sm font-medium text-gray-700" htmlFor="account_id">
-                Which account is this for?
+                Which client is this for?
               </label>
               <select
                 id="account_id"
                 name="account_id"
                 required
-                defaultValue={connectedAccounts[0].id}
+                defaultValue={profiles[0].id}
                 className={inputCls}
               >
-                {connectedAccounts.map((a) => (
+                {profiles.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-gray-400">
+                Don&apos;t see them?{' '}
+                <Link href="/dashboard/clients/new" className="underline underline-offset-2">
+                  Create a new client profile
+                </Link>
+                .
+              </p>
             </div>
 
             {fields.map((f) => (

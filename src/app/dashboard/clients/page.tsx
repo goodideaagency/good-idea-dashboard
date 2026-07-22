@@ -46,15 +46,23 @@ export default async function ClientsPage() {
         </div>
       </div>
 
-      <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
-        Managed accounts
-      </p>
+      <div className="mt-10 flex items-baseline justify-between">
+        <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
+          Managed accounts
+        </p>
+        <Link
+          href="/dashboard/clients/new"
+          className="border border-[#e7e2d3] px-3 py-1.5 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+        >
+          + New client profile
+        </Link>
+      </div>
 
       {accountList.length === 0 ? (
         <div className="mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
           <p className="text-sm text-gray-500">
             No accounts yet.{' '}
-            <Link href="/dashboard/add" className="underline underline-offset-2">
+            <Link href="/dashboard/clients/new" className="underline underline-offset-2">
               Add your first one.
             </Link>
           </p>

@@ -191,12 +191,16 @@ export async function getListFields(listId: string): Promise<ClickUpField[]> {
   }
 }
 
-// Creates a task in a List, optionally with a starting status and Custom
-// Field answers (from a submitted intake form). Returns null on failure.
+// Creates a task in a List, optionally with a starting status, description,
+// and Custom Field answers (from a submitted intake form). Returns null on failure.
 export async function createTask(
   listId: string,
   name: string,
-  opts: { status?: string; customFields?: { id: string; value: unknown }[] } = {}
+  opts: {
+    status?: string
+    description?: string
+    customFields?: { id: string; value: unknown }[]
+  } = {}
 ): Promise<{ id: string; url: string } | null> {
   try {
     const res = await fetch(`${BASE_URL}/list/${listId}/task`, {
@@ -205,12 +209,30 @@ export async function createTask(
       body: JSON.stringify({
         name,
         ...(opts.status ? { status: opts.status } : {}),
+        ...(opts.description ? { description: opts.description } : {}),
         ...(opts.customFields ? { custom_fields: opts.customFields } : {}),
       }),
     })
     if (!res.ok) return null
     const data = await res.json()
     return { id: data.id, url: data.url }
+  } catch {
+    return null
+  }
+}
+
+// Creates a new List inside a Folder -- used to auto-provision a brand-new
+// client's own List the moment their Client Profile is created.
+export async function createList(folderId: string, name: string): Promise<{ id: string } | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/folder/${folderId}/list`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.id ? { id: data.id } : null
   } catch {
     return null
   }
