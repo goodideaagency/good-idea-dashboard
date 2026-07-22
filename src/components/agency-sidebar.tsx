@@ -57,6 +57,16 @@ export function AgencySidebar({
             <p className="truncate text-xs text-gray-500">{userEmail}</p>
           </div>
         </div>
+        <Link
+          href="/dashboard/settings"
+          className={`block px-2 text-xs font-mono uppercase tracking-wide ${
+            pathname.startsWith('/dashboard/settings')
+              ? 'text-gray-900'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          Account settings
+        </Link>
         <form action={signout}>
           <button className="px-2 text-xs font-mono uppercase tracking-wide text-gray-500 hover:text-gray-800">
             Sign out

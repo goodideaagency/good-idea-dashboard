@@ -68,6 +68,20 @@ export function LoginTabs({ error }: { error?: string }) {
       ) : (
         <form className="mt-6 space-y-4" action={signup}>
           <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="signup-name">
+              Your name
+            </label>
+            <input
+              id="signup-name"
+              name="name"
+              type="text"
+              required
+              autoComplete="name"
+              placeholder="Jane Smith"
+              className={inputCls}
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700" htmlFor="signup-agency">
               Agency name
             </label>

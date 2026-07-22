@@ -35,9 +35,10 @@ export async function updateSubscriptionState(formData: FormData) {
   revalidatePath(`/dashboard/accounts/${accountId}`)
 }
 
-// Posts a client's comment onto a ClickUp task, labeled with their own email
-// so it's clear who actually wrote it (the ClickUp comment itself is always
-// authored by the app's shared service token). Verifies the task really
+// Posts a client's comment onto a ClickUp task, labeled with their own name
+// (falling back to email if they haven't set one) so it's clear who actually
+// wrote it -- the ClickUp comment itself is always authored by the app's
+// shared service token. Verifies the task really
 // belongs to THIS account's connected List before posting, so a client can
 // never comment onto another client's task even by guessing a task id.
 export async function postAccountTaskComment(formData: FormData) {
@@ -63,6 +64,7 @@ export async function postAccountTaskComment(formData: FormData) {
   const taskListId = await getTaskListId(taskId)
   if (taskListId !== account.clickup_list_id) redirect(`/dashboard/accounts/${accountId}`)
 
-  await postTaskComment(taskId, user.email ?? 'Client', text)
+  const authorName = (user.user_metadata as { full_name?: string })?.full_name
+  await postTaskComment(taskId, authorName || user.email || 'Client', text)
   revalidatePath(`/dashboard/accounts/${accountId}`)
 }

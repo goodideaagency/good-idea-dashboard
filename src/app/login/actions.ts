@@ -28,8 +28,12 @@ export async function login(formData: FormData) {
 
 export async function signup(formData: FormData) {
   const supabase = await createClient()
+  const name = String(formData.get('name') || '').trim()
   const agencyName = String(formData.get('agencyName') || '').trim()
 
+  if (!name) {
+    redirect('/login?error=' + encodeURIComponent('Please enter your name to sign up.'))
+  }
   if (!agencyName) {
     redirect('/login?error=' + encodeURIComponent('Please enter your agency name to sign up.'))
   }
@@ -38,8 +42,10 @@ export async function signup(formData: FormData) {
     email: String(formData.get('email')),
     password: String(formData.get('password')),
     options: {
-      // Passed to the database trigger that creates the agency record.
-      data: { agency_name: agencyName },
+      // agency_name is read by the database trigger that creates the agency
+      // record; full_name is just profile data (shown in the UI, used to
+      // label ClickUp comments).
+      data: { agency_name: agencyName, full_name: name },
     },
   })
 
