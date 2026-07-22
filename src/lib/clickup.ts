@@ -35,6 +35,7 @@ export type ClickUpTaskSummary = {
   dueDate: string | null // ISO
   url: string
   listId: string
+  assignees: string[]
 }
 
 export type ClickUpTask = ClickUpTaskSummary & {
@@ -52,6 +53,8 @@ function normalizeTask(t: any): ClickUpTaskSummary {
     dueDate: t.due_date ? new Date(Number(t.due_date)).toISOString() : null,
     url: t.url,
     listId: t.list?.id ?? '',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assignees: (t.assignees ?? []).map((a: any) => a.username).filter(Boolean),
   }
 }
 
