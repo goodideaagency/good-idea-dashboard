@@ -5,25 +5,11 @@ import { Logo } from '@/components/logo'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
+import { StatusBadges, planLabel } from '@/components/status-badge'
 import { signout } from '../login/actions'
 import { setAgencyArchived, syncSubscriptionAmounts } from './actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
-
-function StatusBadge({ status }: { status: string }) {
-  const green = ACTIVE.has(status)
-  const red = ['past_due', 'unpaid', 'incomplete', 'canceled'].includes(status)
-  const cls = green
-    ? 'bg-green-100 text-green-800'
-    : red
-      ? 'bg-red-100 text-red-800'
-      : 'bg-gray-100 text-gray-700'
-  return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
-      {status}
-    </span>
-  )
-}
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -245,10 +231,6 @@ export default async function AdminPage() {
                     <tbody className="divide-y divide-[#f2ede0]">
                       {agencyAccounts.map((acc) => {
                         const accSubs = subsByAccount.get(acc.id) ?? []
-                        const distinctStatuses = [
-                          ...new Set(accSubs.map((s) => s.status ?? 'none')),
-                        ]
-                        const allActive = distinctStatuses.every((s) => ACTIVE.has(s))
                         return (
                           <tr key={acc.id}>
                             <td className="px-5 py-3">
@@ -262,24 +244,12 @@ export default async function AdminPage() {
                                 <p className="text-xs text-gray-500">{acc.website}</p>
                               )}
                             </td>
-                            <td className="px-5 py-3 text-gray-700">
-                              {accSubs.length === 0
-                                ? '—'
-                                : accSubs.length === 1
-                                  ? (accSubs[0].product_name ?? '—')
-                                  : `${accSubs.length} plans`}
-                            </td>
+                            <td className="px-5 py-3 text-gray-700">{planLabel(accSubs)}</td>
                             <td className="px-5 py-3">
                               {accSubs.length === 0 ? (
                                 <span className="text-xs text-gray-400">No subscription</span>
-                              ) : allActive ? (
-                                <StatusBadge status="active" />
                               ) : (
-                                <div className="flex flex-wrap gap-1">
-                                  {distinctStatuses.map((s) => (
-                                    <StatusBadge key={s} status={s} />
-                                  ))}
-                                </div>
+                                <StatusBadges statuses={accSubs.map((s) => s.status)} />
                               )}
                             </td>
                           </tr>

@@ -4,6 +4,7 @@ import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
 import { listPlansForAgency } from '@/lib/plans'
 import { AddServiceForm } from '@/components/add-service-form'
+import { StatusBadges, planLabel } from '@/components/status-badge'
 import { signout } from '../login/actions'
 import { addServiceAndCheckout } from './actions'
 
@@ -90,9 +91,6 @@ export default async function DashboardPage() {
           <ul className="mt-4 divide-y divide-[#f0ecdf] rounded-xl bg-white ring-1 ring-[#ece7d8]">
             {accounts.map((a) => {
               const subs = a.subscriptions ?? []
-              const activeCount = subs.filter(
-                (s) => s.status === 'active' || s.status === 'trialing'
-              ).length
               return (
                 <li key={a.id}>
                   <Link
@@ -109,10 +107,8 @@ export default async function DashboardPage() {
                       <div>
                         {subs.length > 0 ? (
                           <>
-                            <p className="text-sm text-gray-900">
-                              {subs.length} service{subs.length === 1 ? '' : 's'}
-                            </p>
-                            <p className="text-xs text-gray-500">{activeCount} active</p>
+                            <p className="text-sm text-gray-900">{planLabel(subs)}</p>
+                            <StatusBadges statuses={subs.map((s) => s.status)} />
                           </>
                         ) : (
                           <span className="text-xs text-gray-400">No subscription yet</span>
