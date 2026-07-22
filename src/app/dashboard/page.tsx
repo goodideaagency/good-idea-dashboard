@@ -60,7 +60,7 @@ export default async function DashboardPage() {
       </p>
 
       {accountList.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
+        <div className="mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
           <p className="text-sm text-gray-500">
             No accounts yet.{' '}
             <Link href="/dashboard/add" className="underline underline-offset-2">
@@ -75,7 +75,7 @@ export default async function DashboardPage() {
             return (
               <div
                 key={a.id}
-                className="flex flex-col justify-between rounded-2xl bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
+                className="flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
               >
                 <div>
                   <p className="text-lg font-semibold text-gray-900">{a.name}</p>
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
                 </div>
                 <Link
                   href={`/dashboard/accounts/${a.id}`}
-                  className="mt-8 flex items-center justify-center gap-2 rounded-lg bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+                  className="mt-8 flex items-center justify-center gap-2 bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"
                 >
                   Manage <span aria-hidden="true">→</span>
                 </Link>

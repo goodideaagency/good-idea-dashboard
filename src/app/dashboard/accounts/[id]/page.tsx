@@ -77,7 +77,7 @@ export default async function AccountDetailPage({
         </div>
         <Link
           href="/dashboard"
-          className="rounded-lg border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+          className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
           ← Back to accounts
         </Link>
@@ -98,7 +98,7 @@ export default async function AccountDetailPage({
         <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
           Add another service
         </p>
-        <div className="mt-4 rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
+        <div className="mt-4 bg-white p-5 ring-1 ring-[#ece7d8]">
           <AddServiceForm
             action={addServiceAndCheckout}
             plans={plans}

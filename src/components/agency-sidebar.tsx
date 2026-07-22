@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Logo } from './logo'
 
 function navCls(active: boolean) {
-  return `block rounded-lg px-3 py-2 text-sm font-medium ${
+  return `block px-3 py-2 text-sm font-medium ${
     active ? 'bg-[#ece7d8] text-gray-900' : 'text-gray-700 hover:bg-[#f6f1e4]'
   }`
 }
@@ -23,14 +23,14 @@ export function AgencySidebar({
   const initial = agencyName.trim().charAt(0).toUpperCase() || '?'
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-[#ece7d8] bg-[#FFFCF3] px-4 py-6">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-[#ece7d8] bg-[#f9f5f1] px-4 py-6">
       <Link href="/dashboard" className="px-2">
         <Logo height={28} />
       </Link>
 
       <Link
         href="/dashboard/add"
-        className="mt-8 rounded-lg bg-[#f7cf4a] px-3 py-2.5 text-center text-sm font-semibold text-black hover:brightness-95 font-mono uppercase tracking-wide"
+        className="mt-8 bg-[#f7cf4a] px-3 py-2.5 text-center text-sm font-semibold text-black hover:brightness-95 font-mono uppercase tracking-wide"
       >
         + Add new account
       </Link>
@@ -49,7 +49,7 @@ export function AgencySidebar({
 
       <div className="mt-auto space-y-3 border-t border-[#ece7d8] pt-4">
         <div className="flex items-center gap-3 px-2">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f7cf4a] text-sm font-semibold text-black">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#f7cf4a] text-sm font-semibold text-black">
             {initial}
           </span>
           <div className="min-w-0">

@@ -5,8 +5,8 @@ import { useState } from 'react'
 type Plan = { id: string; label: string }
 type Acct = { id: string; name: string }
 
-function pill(active: boolean) {
-  return `rounded-lg px-3 py-1.5 text-sm font-mono uppercase tracking-wide ${
+function toggleCls(active: boolean) {
+  return `px-3 py-1.5 text-sm font-mono uppercase tracking-wide ${
     active
       ? 'bg-gray-900 text-white'
       : 'border border-[#e7e2d3] text-gray-700 hover:bg-[#f6f1e4]'
@@ -14,7 +14,7 @@ function pill(active: boolean) {
 }
 
 const inputCls =
-  'mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
+  'mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
 
 function NewClientFields() {
   return (
@@ -71,10 +71,10 @@ export function AddServiceForm({
 
       {showToggle && (
         <div className="flex gap-2">
-          <button type="button" onClick={() => setMode('existing')} className={pill(mode === 'existing')}>
+          <button type="button" onClick={() => setMode('existing')} className={toggleCls(mode === 'existing')}>
             Existing client
           </button>
-          <button type="button" onClick={() => setMode('new')} className={pill(mode === 'new')}>
+          <button type="button" onClick={() => setMode('new')} className={toggleCls(mode === 'new')}>
             New client
           </button>
         </div>
@@ -109,7 +109,7 @@ export function AddServiceForm({
           {plans.map((plan, i) => (
             <label
               key={plan.id}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
+              className="flex cursor-pointer items-center gap-3 border border-[#e7e2d3] px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
             >
               <input type="radio" name="priceId" value={plan.id} defaultChecked={i === 0} required />
               <span className="text-gray-900">{plan.label}</span>
@@ -118,7 +118,7 @@ export function AddServiceForm({
         </div>
       </div>
 
-      <button className="rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+      <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
         Add &amp; continue to payment
       </button>
     </form>

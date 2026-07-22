@@ -25,7 +25,7 @@ export function AccountServices({
 }) {
   if (services.length === 0) {
     return (
-      <div className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
+      <div className="bg-white p-5 ring-1 ring-[#ece7d8]">
         <p className="text-sm text-gray-500">Services</p>
         <p className="mt-1 text-sm text-gray-400">No services yet.</p>
       </div>
@@ -48,7 +48,7 @@ export function AccountServices({
 
         return (
           <div key={sub.stripe_subscription_id ?? i}>
-            <div className="rounded-xl bg-white p-5 ring-1 ring-[#ece7d8]">
+            <div className="bg-white p-5 ring-1 ring-[#ece7d8]">
               <p className="text-sm text-gray-500">Service</p>
               <div className="mt-1 flex items-center gap-3">
                 <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>

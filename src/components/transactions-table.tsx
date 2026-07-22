@@ -42,14 +42,14 @@ export function TransactionsTable({
 }) {
   if (txns.length === 0) {
     return (
-      <div className="mt-4 rounded-xl border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
+      <div className="mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
         <p className="text-sm text-gray-500">{emptyText}</p>
       </div>
     )
   }
 
   return (
-    <div className="mt-4 overflow-x-auto rounded-xl bg-white ring-1 ring-[#ece7d8]">
+    <div className="mt-4 overflow-x-auto bg-white ring-1 ring-[#ece7d8]">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs uppercase tracking-wide text-gray-400">

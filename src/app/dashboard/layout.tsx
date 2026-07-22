@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <AgencySidebar agencyName={agencyName} userEmail={user.email ?? ''} signout={signout} />
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="min-w-0 flex-1 bg-white">{children}</main>
     </div>
   )
 }

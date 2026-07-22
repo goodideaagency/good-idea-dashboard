@@ -51,7 +51,7 @@ export function SubscriptionActions({
           <button
             onClick={() => submit('restart')}
             disabled={pending}
-            className="rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:opacity-60"
+            className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:opacity-60"
           >
             {pending ? 'Working…' : 'Keep subscription'}
           </button>
@@ -60,7 +60,7 @@ export function SubscriptionActions({
         <button
           onClick={() => submit('cancel')}
           disabled={pending}
-          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+          className="border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
         >
           {pending ? 'Working…' : 'Cancel subscription'}
         </button>
