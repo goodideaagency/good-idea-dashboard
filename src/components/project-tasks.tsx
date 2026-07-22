@@ -1,4 +1,4 @@
-import type { ClickUpTask } from '@/lib/clickup'
+import type { ClickUpTask, CommentSegment } from '@/lib/clickup'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -6,6 +6,39 @@ function fmtDate(iso: string) {
     month: 'short',
     day: 'numeric',
   })
+}
+
+// Renders a comment's segments in order: plain text (newlines preserved),
+// inline images, and file attachments as a small link.
+function CommentBody({ segments }: { segments: CommentSegment[] }) {
+  return (
+    <div className="mt-0.5 space-y-2 text-gray-600">
+      {segments.map((seg, i) => {
+        if (seg.type === 'image') {
+          // eslint-disable-next-line @next/next/no-img-element
+          return <img key={i} src={seg.url} alt={seg.alt} className="max-h-64 max-w-full" />
+        }
+        if (seg.type === 'file') {
+          return (
+            <a
+              key={i}
+              href={seg.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-gray-900 underline underline-offset-2 hover:text-gray-600"
+            >
+              {seg.name}
+            </a>
+          )
+        }
+        return (
+          <span key={i} className="whitespace-pre-wrap">
+            {seg.text}
+          </span>
+        )
+      })}
+    </div>
+  )
 }
 
 // Renders every ClickUp task for an account's connected List: title, status
@@ -79,14 +112,14 @@ export function ProjectTasks({
           {task.comments.length > 0 && (
             <div className="mt-4 border-t border-[#f0ecdf] pt-3">
               <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Comments</p>
-              <ul className="mt-2 space-y-3">
+              <ul className="mt-2 max-h-72 space-y-3 overflow-y-auto pr-1">
                 {task.comments.map((c) => (
                   <li key={c.id} className="text-sm">
                     <p className="text-gray-900">
                       <span className="font-medium">{c.author}</span>{' '}
                       <span className="text-xs text-gray-400">{fmtDate(c.date)}</span>
                     </p>
-                    <p className="mt-0.5 text-gray-600">{c.text}</p>
+                    <CommentBody segments={c.segments} />
                   </li>
                 ))}
               </ul>
