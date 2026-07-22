@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { updateName, updateEmail, updatePassword } from './actions'
+import { updateName, updateEmail, sendPasswordReset } from './actions'
 
 const inputCls =
   'mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
@@ -8,7 +8,7 @@ const inputCls =
 const SAVED_MESSAGES: Record<string, string> = {
   name: 'Your name was updated.',
   email: 'Check your inbox to confirm the new email address.',
-  password: 'Your password was updated.',
+  'password-email': 'Check your inbox for a link to reset your password.',
 }
 
 export default async function AccountSettingsPage({
@@ -78,19 +78,12 @@ export default async function AccountSettingsPage({
 
         <div className="bg-white p-5 ring-1 ring-[#ece7d8]">
           <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Password</p>
-          <form action={updatePassword} className="mt-3 flex items-end gap-3">
-            <div className="flex-1">
-              <input
-                name="password"
-                type="password"
-                required
-                autoComplete="new-password"
-                placeholder="At least 8 characters"
-                className={inputCls}
-              />
-            </div>
+          <p className="mt-2 text-sm text-gray-500">
+            For security, password changes go through a reset link sent to your email.
+          </p>
+          <form action={sendPasswordReset} className="mt-3">
             <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
-              Save
+              Send password reset email
             </button>
           </form>
         </div>

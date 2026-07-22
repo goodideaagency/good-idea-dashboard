@@ -23,7 +23,7 @@ export function AgencySidebar({
   const initial = agencyName.trim().charAt(0).toUpperCase() || '?'
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-[#ece7d8] bg-[#f9f5f1] px-4 py-6">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-[#ece7d8] bg-[#f9f5f1] px-4 py-6">
       <Link href="/dashboard" className="px-2">
         <Logo height={28} />
       </Link>
@@ -48,7 +48,12 @@ export function AgencySidebar({
       </nav>
 
       <div className="mt-auto space-y-3 border-t border-[#ece7d8] pt-4">
-        <div className="flex items-center gap-3 px-2">
+        <Link
+          href="/dashboard/settings"
+          className={`flex items-center gap-3 px-2 py-1 -mx-2 ${
+            pathname.startsWith('/dashboard/settings') ? 'bg-[#ece7d8]' : 'hover:bg-[#f6f1e4]'
+          }`}
+        >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#f7cf4a] text-sm font-semibold text-black">
             {initial}
           </span>
@@ -56,16 +61,6 @@ export function AgencySidebar({
             <p className="truncate text-sm font-medium text-gray-900">{agencyName}</p>
             <p className="truncate text-xs text-gray-500">{userEmail}</p>
           </div>
-        </div>
-        <Link
-          href="/dashboard/settings"
-          className={`block px-2 text-xs font-mono uppercase tracking-wide ${
-            pathname.startsWith('/dashboard/settings')
-              ? 'text-gray-900'
-              : 'text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          Account settings
         </Link>
         <form action={signout}>
           <button className="px-2 text-xs font-mono uppercase tracking-wide text-gray-500 hover:text-gray-800">

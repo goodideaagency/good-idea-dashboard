@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
 export async function updateName(formData: FormData) {
@@ -47,24 +48,25 @@ export async function updateEmail(formData: FormData) {
   redirect('/dashboard/settings?saved=email')
 }
 
-export async function updatePassword(formData: FormData) {
+// Sends a password-reset link to the user's own email instead of setting a
+// new password in-place -- reuses the same /auth/confirm?token_hash&type
+// verification route as the admin-invite flow.
+export async function sendPasswordReset() {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user?.email) redirect('/login')
 
-  const password = String(formData.get('password') || '')
-  if (password.length < 8) {
-    redirect(
-      '/dashboard/settings?error=' + encodeURIComponent('Password must be at least 8 characters.')
-    )
-  }
+  const origin =
+    (await headers()).get('origin') ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
-  const { error } = await supabase.auth.updateUser({ password })
+  const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+    redirectTo: `${origin}/auth/confirm?next=/set-password`,
+  })
   if (error) {
     redirect('/dashboard/settings?error=' + encodeURIComponent(error.message))
   }
 
-  redirect('/dashboard/settings?saved=password')
+  redirect('/dashboard/settings?saved=password-email')
 }
