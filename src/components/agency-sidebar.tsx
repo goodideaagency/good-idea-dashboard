@@ -4,16 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from './logo'
 import { ProfileMenu } from './profile-menu'
-import { NotificationBell } from './notification-bell'
-
-type NotificationRow = {
-  id: string
-  title: string
-  body: string | null
-  url: string | null
-  read_at: string | null
-  created_at: string
-}
 
 function navCls(active: boolean) {
   return `block px-3 py-2 text-sm font-medium ${
@@ -25,25 +15,20 @@ export function AgencySidebar({
   agencyName,
   userEmail,
   signout,
-  notifications,
   unreadCount,
 }: {
   agencyName: string
   userEmail: string
   signout: () => void | Promise<void>
-  notifications: NotificationRow[]
   unreadCount: number
 }) {
   const pathname = usePathname()
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-[#ece7d8] bg-[#f9f5f1] px-4 py-6">
-      <div className="flex items-center justify-between px-2">
-        <Link href="/dashboard">
-          <Logo height={28} />
-        </Link>
-        <NotificationBell initialNotifications={notifications} initialUnreadCount={unreadCount} />
-      </div>
+      <Link href="/dashboard" className="px-2">
+        <Logo height={28} />
+      </Link>
 
       <Link
         href="/dashboard/request"
@@ -55,6 +40,19 @@ export function AgencySidebar({
       <nav className="mt-6 space-y-1">
         <Link href="/dashboard" className={navCls(pathname === '/dashboard')}>
           Dashboard
+        </Link>
+        <Link
+          href="/dashboard/notifications"
+          className={`flex items-center justify-between ${navCls(
+            pathname.startsWith('/dashboard/notifications')
+          )}`}
+        >
+          Notifications
+          {unreadCount > 0 && (
+            <span className="flex h-4 min-w-4 items-center justify-center bg-red-600 px-1 text-[10px] font-semibold text-white">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </Link>
         <Link
           href="/dashboard/projects"
