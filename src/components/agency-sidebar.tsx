@@ -4,6 +4,16 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from './logo'
 import { ProfileMenu } from './profile-menu'
+import { NotificationBell } from './notification-bell'
+
+type NotificationRow = {
+  id: string
+  title: string
+  body: string | null
+  url: string | null
+  read_at: string | null
+  created_at: string
+}
 
 function navCls(active: boolean) {
   return `block px-3 py-2 text-sm font-medium ${
@@ -15,18 +25,25 @@ export function AgencySidebar({
   agencyName,
   userEmail,
   signout,
+  notifications,
+  unreadCount,
 }: {
   agencyName: string
   userEmail: string
   signout: () => void | Promise<void>
+  notifications: NotificationRow[]
+  unreadCount: number
 }) {
   const pathname = usePathname()
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-[#ece7d8] bg-[#f9f5f1] px-4 py-6">
-      <Link href="/dashboard" className="px-2">
-        <Logo height={28} />
-      </Link>
+      <div className="flex items-center justify-between px-2">
+        <Link href="/dashboard">
+          <Logo height={28} />
+        </Link>
+        <NotificationBell initialNotifications={notifications} initialUnreadCount={unreadCount} />
+      </div>
 
       <Link
         href="/dashboard/request"
