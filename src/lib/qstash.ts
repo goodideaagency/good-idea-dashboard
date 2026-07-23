@@ -14,8 +14,13 @@ export async function scheduleFlush(batchId: string, delaySeconds: number): Prom
   const bypass = process.env.VERCEL_PROTECTION_BYPASS
   const callbackUrl = `${appUrl}/api/notifications/flush${bypass ? `?x-vercel-protection-bypass=${bypass}` : ''}`
 
+  // Upstash accounts are region-pinned; the generic qstash.upstash.io host
+  // 404s for a region-pinned account, so QSTASH_URL (from the Upstash
+  // console) must be used instead.
+  const qstashBase = process.env.QSTASH_URL ?? 'https://qstash.upstash.io'
+
   try {
-    await fetch(`https://qstash.upstash.io/v2/publish/${callbackUrl}`, {
+    await fetch(`${qstashBase}/v2/publish/${callbackUrl}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
