@@ -4,16 +4,36 @@ import { getTask } from '@/lib/clickup'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { recordChange, type BatchItem } from '@/lib/notification-batches'
 
-const TRACKED_EVENTS: Record<string, 'comment' | 'field_change'> = {
-  taskCommentPosted: 'comment',
-  taskStatusUpdated: 'field_change',
-  taskDueDateUpdated: 'field_change',
-  taskAttachmentUpdated: 'field_change',
+// ClickUp has no dedicated "attachment added" event -- it folds into the
+// generic taskUpdated event instead, so we only treat a taskUpdated payload
+// as notification-worthy when one of its history_items is actually an
+// attachment change (otherwise every minor edit -- name, description,
+// priority, etc. -- would fire a notification).
+type Kind = 'comment' | 'status' | 'due_date' | 'attachment'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resolveKind(event: string, historyItems: any[]): Kind | null {
+  if (event === 'taskCommentPosted') return 'comment'
+  if (event === 'taskStatusUpdated') return 'status'
+  if (event === 'taskDueDateUpdated') return 'due_date'
+  if (event === 'taskUpdated') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hasAttachment = historyItems.some((h: any) => h.field === 'attachment')
+    return hasAttachment ? 'attachment' : null
+  }
+  return null
+}
+
+const CATEGORY: Record<Kind, 'comment' | 'field_change'> = {
+  comment: 'comment',
+  status: 'field_change',
+  due_date: 'field_change',
+  attachment: 'field_change',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function describeChange(event: string, actor: string, task: any): string {
-  if (event === 'taskCommentPosted') {
+function describeChange(kind: Kind, actor: string, task: any): string {
+  if (kind === 'comment') {
     const latest = [...task.comments].sort((a: { date: string }, b: { date: string }) =>
       b.date.localeCompare(a.date)
     )[0]
@@ -24,10 +44,10 @@ function describeChange(event: string, actor: string, task: any): string {
       .trim()
     return `${actor} commented${text ? `: "${text.slice(0, 200)}"` : ''}`
   }
-  if (event === 'taskStatusUpdated') {
+  if (kind === 'status') {
     return `${actor} changed the status to "${task.status}"`
   }
-  if (event === 'taskDueDateUpdated') {
+  if (kind === 'due_date') {
     return `${actor} updated the due date${
       task.dueDate ? ` to ${new Date(task.dueDate).toLocaleDateString()}` : ''
     }`
@@ -57,8 +77,9 @@ export async function POST(req: NextRequest) {
 
   const event = payload.event as string
   const taskId = payload.task_id as string | undefined
-  const category = TRACKED_EVENTS[event]
-  if (!taskId || !category) return NextResponse.json({ ok: true })
+  const historyItems = payload.history_items ?? []
+  const kind = resolveKind(event, historyItems)
+  if (!taskId || !kind) return NextResponse.json({ ok: true })
 
   const task = await getTask(taskId)
   if (!task) return NextResponse.json({ ok: true })
@@ -71,15 +92,15 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
   if (!account) return NextResponse.json({ ok: true })
 
-  const actor = payload.history_items?.[0]?.user?.username ?? 'Someone on the team'
+  const actor = historyItems[0]?.user?.username ?? 'Someone on the team'
   const item: BatchItem = {
-    type: event,
-    detail: describeChange(event, actor, task),
+    type: kind,
+    detail: describeChange(kind, actor, task),
     actor,
     at: new Date().toISOString(),
     taskName: task.name,
   }
 
-  await recordChange(account.id, taskId, category, item)
+  await recordChange(account.id, taskId, CATEGORY[kind], item)
   return NextResponse.json({ ok: true })
 }

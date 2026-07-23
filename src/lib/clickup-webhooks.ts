@@ -17,8 +17,10 @@ export function verifyClickUpSignature(rawBody: string, signature: string | null
 // One-time setup: registers a SINGLE webhook scoped to the whole "Good Idea
 // Clients" Space, so every client Folder/List under it is covered
 // automatically -- including new clients added later -- with no per-list
-// registration. Run once (see scripts/register-clickup-webhook.ts); the
-// returned `secret` must then be saved as CLICKUP_WEBHOOK_SECRET.
+// registration. The returned `secret` must then be saved as
+// CLICKUP_WEBHOOK_SECRET. Note: ClickUp has no dedicated attachment event --
+// taskUpdated is subscribed instead, and the webhook route filters its
+// history_items down to attachment-only changes (see route.ts).
 export async function registerSpaceWebhook(teamId: string, spaceId: string, endpointUrl: string) {
   const res = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/webhook`, {
     method: 'POST',
@@ -28,7 +30,7 @@ export async function registerSpaceWebhook(teamId: string, spaceId: string, endp
     },
     body: JSON.stringify({
       endpoint: endpointUrl,
-      events: ['taskCommentPosted', 'taskStatusUpdated', 'taskDueDateUpdated', 'taskAttachmentUpdated'],
+      events: ['taskCommentPosted', 'taskStatusUpdated', 'taskDueDateUpdated', 'taskUpdated'],
       space_id: spaceId,
     }),
   })
