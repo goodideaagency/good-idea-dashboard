@@ -5,7 +5,12 @@ import { listPlansForAgency } from '@/lib/plans'
 import { AddServiceForm } from '@/components/add-service-form'
 import { addServiceAndCheckout } from '../actions'
 
-export default async function AddAccountPage() {
+export default async function AddAccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string }>
+}) {
+  const { plan } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -29,7 +34,7 @@ export default async function AddAccountPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold text-gray-900">Add a service</h1>
         <Link
-          href="/dashboard/accounts"
+          href="/dashboard/request"
           className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
           ← Back
@@ -41,6 +46,7 @@ export default async function AddAccountPage() {
           action={addServiceAndCheckout}
           plans={plans}
           accounts={(accounts ?? []).map((a) => ({ id: a.id, name: a.name }))}
+          defaultPlanId={plan}
         />
       </div>
     </div>

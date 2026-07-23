@@ -43,11 +43,13 @@ export function AddServiceForm({
   plans,
   accounts,
   fixedAccountId,
+  defaultPlanId,
 }: {
   action: (formData: FormData) => void | Promise<void>
   plans: Plan[]
   accounts: Acct[]
   fixedAccountId?: string
+  defaultPlanId?: string
 }) {
   const [mode, setMode] = useState<'existing' | 'new'>(
     accounts.length > 0 ? 'existing' : 'new'
@@ -111,7 +113,13 @@ export function AddServiceForm({
               key={plan.id}
               className="flex cursor-pointer items-center gap-3 border border-[#e7e2d3] px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
             >
-              <input type="radio" name="priceId" value={plan.id} defaultChecked={i === 0} required />
+              <input
+                type="radio"
+                name="priceId"
+                value={plan.id}
+                defaultChecked={defaultPlanId ? plan.id === defaultPlanId : i === 0}
+                required
+              />
               <span className="text-gray-900">{plan.label}</span>
             </label>
           ))}

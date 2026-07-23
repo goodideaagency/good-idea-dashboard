@@ -37,7 +37,7 @@ export default async function AccountsPage() {
   return (
     <div className="p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <h1 className="text-4xl font-semibold text-gray-900">Accounts</h1>
+        <h1 className="text-4xl font-semibold text-gray-900">Managed Accounts</h1>
         <div className="text-right">
           <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
             Total accounts
@@ -52,10 +52,10 @@ export default async function AccountsPage() {
           Billed accounts
         </p>
         <Link
-          href="/dashboard/add"
+          href="/dashboard/request"
           className="border border-[#e7e2d3] px-3 py-1.5 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
-          + Add new account
+          + Add new service
         </Link>
       </div>
 
@@ -63,7 +63,7 @@ export default async function AccountsPage() {
         <div className="mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
           <p className="text-sm text-gray-500">
             No accounts yet.{' '}
-            <Link href="/dashboard/add" className="underline underline-offset-2">
+            <Link href="/dashboard/request" className="underline underline-offset-2">
               Add your first one.
             </Link>
           </p>
