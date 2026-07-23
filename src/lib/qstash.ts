@@ -7,8 +7,15 @@ export async function scheduleFlush(batchId: string, delaySeconds: number): Prom
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
   if (!token || !appUrl) return
 
+  // On a Vercel Preview deployment, Deployment Protection blocks unauthenticated
+  // requests -- including QStash's own callback -- unless this bypass token is
+  // appended. Harmless/no-op once this app URL is a production domain without
+  // protection.
+  const bypass = process.env.VERCEL_PROTECTION_BYPASS
+  const callbackUrl = `${appUrl}/api/notifications/flush${bypass ? `?x-vercel-protection-bypass=${bypass}` : ''}`
+
   try {
-    await fetch(`https://qstash.upstash.io/v2/publish/${appUrl}/api/notifications/flush`, {
+    await fetch(`https://qstash.upstash.io/v2/publish/${callbackUrl}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
