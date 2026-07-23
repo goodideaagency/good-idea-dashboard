@@ -62,7 +62,7 @@ export async function createClientProfile(formData: FormData) {
   }
 
   revalidatePath('/dashboard/clients')
-  redirect(`/dashboard/accounts/${account.id}`)
+  redirect(`/dashboard/clients/${account.id}`)
 }
 
 // Updates a Client Profile's basic info. RLS on the select ensures the
@@ -93,6 +93,6 @@ export async function updateClientProfile(formData: FormData) {
     .update({ name, website: website || null, logo_url: logoUrl || null })
     .eq('id', accountId)
 
-  revalidatePath(`/dashboard/accounts/${accountId}`)
+  revalidatePath(`/dashboard/clients/${accountId}`)
   revalidatePath('/dashboard/clients')
 }

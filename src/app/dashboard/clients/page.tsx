@@ -1,17 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { StatusBadges, planLabel } from '@/components/status-badge'
 
 type AccountRow = {
   id: string
   name: string
   website: string | null
-  subscriptions: {
-    status: string | null
-    product_name: string | null
-    current_period_end: string | null
-  }[]
+  logo_url: string | null
 }
 
 export default async function ClientsPage() {
@@ -26,9 +21,7 @@ export default async function ClientsPage() {
 
   const { data: accounts } = await supabase
     .from('accounts')
-    .select(
-      'id, name, website, subscriptions(status, product_name, current_period_end)'
-    )
+    .select('id, name, website, logo_url')
     .order('created_at', { ascending: true })
     .returns<AccountRow[]>()
 
@@ -40,7 +33,7 @@ export default async function ClientsPage() {
         <h1 className="text-4xl font-semibold text-gray-900">My Clients</h1>
         <div className="text-right">
           <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
-            Total accounts
+            Total clients
           </p>
           <p className="text-3xl font-semibold text-gray-900">{accountList.length}</p>
         </div>
@@ -48,7 +41,7 @@ export default async function ClientsPage() {
 
       <div className="mt-10 flex items-baseline justify-between">
         <p className="text-xs font-mono uppercase tracking-wide text-gray-400">
-          Managed accounts
+          Client profiles
         </p>
         <Link
           href="/dashboard/clients/new"
@@ -61,7 +54,7 @@ export default async function ClientsPage() {
       {accountList.length === 0 ? (
         <div className="mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
           <p className="text-sm text-gray-500">
-            No accounts yet.{' '}
+            No client profiles yet.{' '}
             <Link href="/dashboard/clients/new" className="underline underline-offset-2">
               Add your first one.
             </Link>
@@ -69,33 +62,37 @@ export default async function ClientsPage() {
         </div>
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {accountList.map((a) => {
-            const subs = a.subscriptions ?? []
-            return (
-              <div
-                key={a.id}
-                className="flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
-              >
-                <div>
-                  <p className="text-lg font-semibold text-gray-900">{a.name}</p>
-                  <p className="mt-1 text-sm text-gray-600">{planLabel(subs)}</p>
-                  <div className="mt-4">
-                    {subs.length > 0 ? (
-                      <StatusBadges statuses={subs.map((s) => s.status)} />
-                    ) : (
-                      <span className="text-xs text-gray-400">No subscription yet</span>
-                    )}
-                  </div>
+          {accountList.map((a) => (
+            <Link
+              key={a.id}
+              href={`/dashboard/clients/${a.id}`}
+              className="flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8] hover:bg-[#f0ead9]"
+            >
+              <div className="flex items-center gap-3">
+                {a.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={a.logo_url}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-[#ece7d8]"
+                  />
+                ) : (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#ece7d8] text-sm font-semibold text-gray-700">
+                    {a.name.trim().charAt(0).toUpperCase() || '?'}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-semibold text-gray-900">{a.name}</p>
+                  {a.website && (
+                    <p className="truncate text-sm text-gray-600">{a.website}</p>
+                  )}
                 </div>
-                <Link
-                  href={`/dashboard/accounts/${a.id}`}
-                  className="mt-8 flex items-center justify-center gap-2 bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"
-                >
-                  Manage <span aria-hidden="true">→</span>
-                </Link>
               </div>
-            )
-          })}
+              <div className="mt-6 flex items-center justify-end gap-2 text-sm font-semibold text-gray-900">
+                View profile <span aria-hidden="true">→</span>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
     </div>
