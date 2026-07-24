@@ -191,6 +191,19 @@ export async function getListFields(listId: string): Promise<ClickUpField[]> {
   }
 }
 
+// Every newly created task is assigned to this ClickUp user by default (a
+// comma-separated list of ClickUp user ids) -- currently the single "bot"
+// account tasks get created and commented under, so nothing is ever left
+// unassigned. As real team members get their own ClickUp seats, reassign
+// individual tasks in ClickUp, or change this env var to spread new tasks
+// across people going forward.
+function defaultAssignees(): number[] {
+  return (process.env.CLICKUP_DEFAULT_ASSIGNEE_ID ?? '')
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => !Number.isNaN(n) && n > 0)
+}
+
 // Creates a task in a List, optionally with a starting status, description,
 // and Custom Field answers (from a submitted intake form). Returns null on failure.
 export async function createTask(
@@ -203,6 +216,7 @@ export async function createTask(
   } = {}
 ): Promise<{ id: string; url: string } | null> {
   try {
+    const assignees = defaultAssignees()
     const res = await fetch(`${BASE_URL}/list/${listId}/task`, {
       method: 'POST',
       headers: { ...headers(), 'Content-Type': 'application/json' },
@@ -211,6 +225,7 @@ export async function createTask(
         ...(opts.status ? { status: opts.status } : {}),
         ...(opts.description ? { description: opts.description } : {}),
         ...(opts.customFields ? { custom_fields: opts.customFields } : {}),
+        ...(assignees.length > 0 ? { assignees } : {}),
       }),
     })
     if (!res.ok) return null
@@ -218,6 +233,22 @@ export async function createTask(
     return { id: data.id, url: data.url }
   } catch {
     return null
+  }
+}
+
+// Adds assignees to an existing task -- used after template-based creation,
+// since that endpoint (like custom_fields) ignores an inline assignees param.
+export async function assignTask(taskId: string, userIds: number[]): Promise<boolean> {
+  if (userIds.length === 0) return true
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}`, {
+      method: 'PUT',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignees: { add: userIds, rem: [] } }),
+    })
+    return res.ok
+  } catch {
+    return false
   }
 }
 
@@ -240,8 +271,8 @@ export async function createList(folderId: string, name: string): Promise<{ id: 
 
 // Creates a task from a saved ClickUp Task Template (checklist, description,
 // etc. all come from the template) -- note the template-creation endpoint
-// ignores a custom_fields body param, so answers must be set afterward via
-// setTaskCustomField, one call per field.
+// ignores both a custom_fields AND an assignees body param, so both must be
+// set afterward (see setTaskCustomField / assignTask).
 export async function createTaskFromTemplate(
   listId: string,
   templateId: string,
@@ -257,6 +288,7 @@ export async function createTaskFromTemplate(
     const data = await res.json()
     const id = data.id ?? data.task?.id
     const url = data.url ?? data.task?.url ?? ''
+    if (id) await assignTask(id, defaultAssignees())
     return id ? { id, url } : null
   } catch {
     return null
