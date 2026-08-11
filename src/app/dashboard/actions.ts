@@ -107,6 +107,7 @@ export async function addServiceAndCheckout(formData: FormData) {
     metadata: { account_id: accountId, agency_id: agency.id },
     success_url: `${origin}/dashboard/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}${returnTo}`,
+    allow_promotion_codes: true,
   })
 
   if (session.url) redirect(session.url)
