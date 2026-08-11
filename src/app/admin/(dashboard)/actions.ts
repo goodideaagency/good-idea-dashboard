@@ -13,8 +13,13 @@ import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
 // Logs the calling admin into a real session as the target agency user --
 // full read/write access, exactly what that user would see. Works by
 // minting a Supabase magic-link token server-side (never emailed) and
-// following it via /auth/confirm, so every existing RLS/auth check in the
-// app keeps working unmodified -- there's no special-cased "impersonating"
+// verifying it right here against the SAME client used for this request, so
+// the new session's cookies land in this action's response -- routing that
+// verification through a redirect to a separate Route Handler turned out to
+// be unreliable (a Server Action's redirect() isn't a real browser
+// navigation the way a Route Handler's is, so its Set-Cookie response never
+// actually got applied). Every existing RLS/auth check in the app keeps
+// working unmodified either way -- there's no special-cased "impersonating"
 // branch anywhere except the return trip.
 export async function impersonateUser(formData: FormData) {
   const supabase = await createClient()
@@ -57,9 +62,13 @@ export async function impersonateUser(formData: FormData) {
   })
   if (error || !link) redirect('/admin')
 
-  redirect(
-    `/auth/confirm?token_hash=${link.properties.hashed_token}&type=magiclink&next=${encodeURIComponent('/dashboard')}`
-  )
+  const { error: verifyError } = await supabase.auth.verifyOtp({
+    type: 'magiclink',
+    token_hash: link.properties.hashed_token,
+  })
+  if (verifyError) redirect('/admin')
+
+  redirect('/dashboard')
 }
 
 // Archiving/unarchiving is purely a visibility flag on the agencies row —

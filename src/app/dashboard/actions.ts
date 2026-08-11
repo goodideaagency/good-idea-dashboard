@@ -39,9 +39,17 @@ export async function returnToAdmin() {
   })
   if (error || !link) redirect('/admin/login')
 
-  redirect(
-    `/auth/confirm?token_hash=${link.properties.hashed_token}&type=magiclink&next=${encodeURIComponent('/admin')}`
-  )
+  // Verified against THIS request's client (not routed through /auth/confirm
+  // via redirect()) so the session cookie actually lands -- see the comment
+  // on impersonateUser for why that indirection turned out to be unreliable.
+  const supabase = await createClient()
+  const { error: verifyError } = await supabase.auth.verifyOtp({
+    type: 'magiclink',
+    token_hash: link.properties.hashed_token,
+  })
+  if (verifyError) redirect('/admin/login')
+
+  redirect('/admin')
 }
 
 // Adds a service (subscription) for the logged-in agency and sends them to
