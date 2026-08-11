@@ -86,52 +86,57 @@ export function ProjectTasks({
   return (
     <div className="space-y-6">
       {tasks.map((task) => (
-        <div key={task.id} className="bg-white p-5 ring-1 ring-[#ece7d8]">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-medium text-gray-900">{task.name}</p>
-            <ClickUpStatusPill status={task.status} color={task.statusColor} />
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-            {task.dueDate && <span>Due {fmtDate(task.dueDate)}</span>}
-            <a
-              href={task.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-gray-800"
-            >
-              View in ClickUp
-            </a>
-          </div>
-
-          {task.attachments.length > 0 && (
-            <div className="mt-4 border-t border-[#f0ecdf] pt-3">
-              <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Files</p>
-              <ul className="mt-2 space-y-1">
-                {task.attachments.map((a) => (
-                  <li key={a.id}>
-                    <a
-                      href={a.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-gray-900 underline underline-offset-2 hover:text-gray-600"
-                    >
-                      {a.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+        <div key={task.id} className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
+          {/* Details -- grows as tall as it needs to. */}
+          <div className="bg-white p-5 ring-1 ring-[#ece7d8] lg:col-span-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-medium text-gray-900">{task.name}</p>
+              <ClickUpStatusPill status={task.status} color={task.statusColor} />
             </div>
-          )}
 
-          {task.comments.length > 0 && (
-            <div className="mt-4 border-t border-[#f0ecdf] pt-3">
-              <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Comments</p>
-              {/* Sorted newest-first, then rendered in a reversed flex column --
-                  visually that reads oldest-on-top/newest-on-bottom like a
-                  texting app, and the scroll container's default (top) position
-                  lands on the newest message instead of the oldest one. */}
-              <ul className="mt-2 flex max-h-72 flex-col-reverse gap-3 overflow-y-auto pr-1">
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+              {task.dueDate && <span>Due {fmtDate(task.dueDate)}</span>}
+              <a
+                href={task.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-gray-800"
+              >
+                View in ClickUp
+              </a>
+            </div>
+
+            {task.attachments.length > 0 && (
+              <div className="mt-4 border-t border-[#f0ecdf] pt-3">
+                <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Files</p>
+                <ul className="mt-2 space-y-1">
+                  {task.attachments.map((a) => (
+                    <li key={a.id}>
+                      <a
+                        href={a.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-gray-900 underline underline-offset-2 hover:text-gray-600"
+                      >
+                        {a.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Comments -- fixed height, and sticks near the top of the viewport
+              while the (often much taller) details card scrolls past it. */}
+          <div className="bg-white p-5 ring-1 ring-[#ece7d8] lg:sticky lg:top-6 lg:col-span-2 lg:self-start">
+            <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Comments</p>
+            {task.comments.length > 0 ? (
+              /* Sorted newest-first, then rendered in a reversed flex column --
+                 visually that reads oldest-on-top/newest-on-bottom like a
+                 texting app, and the scroll container's default (top) position
+                 lands on the newest message instead of the oldest one. */
+              <ul className="mt-2 flex h-72 flex-col-reverse gap-3 overflow-y-auto pr-1">
                 {[...task.comments]
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((c) => {
@@ -147,32 +152,34 @@ export function ProjectTasks({
                     )
                   })}
               </ul>
-            </div>
-          )}
+            ) : (
+              <p className="mt-2 text-sm text-gray-400">No comments yet.</p>
+            )}
 
-          {commentAction && accountId && (
-            <form action={commentAction} className="mt-4 border-t border-[#f0ecdf] pt-3">
-              <input type="hidden" name="account_id" value={accountId} />
-              <input type="hidden" name="task_id" value={task.id} />
-              <label
-                className="block text-xs font-mono uppercase tracking-wide text-gray-400"
-                htmlFor={`comment-${task.id}`}
-              >
-                Add a comment
-              </label>
-              <textarea
-                id={`comment-${task.id}`}
-                name="text"
-                required
-                rows={2}
-                placeholder="Write a comment..."
-                className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
-              />
-              <button className="mt-2 bg-[#f7cf4a] px-4 py-1.5 text-sm font-semibold text-black hover:brightness-95">
-                Post
-              </button>
-            </form>
-          )}
+            {commentAction && accountId && (
+              <form action={commentAction} className="mt-4 border-t border-[#f0ecdf] pt-3">
+                <input type="hidden" name="account_id" value={accountId} />
+                <input type="hidden" name="task_id" value={task.id} />
+                <label
+                  className="block text-xs font-mono uppercase tracking-wide text-gray-400"
+                  htmlFor={`comment-${task.id}`}
+                >
+                  Add a comment
+                </label>
+                <textarea
+                  id={`comment-${task.id}`}
+                  name="text"
+                  required
+                  rows={2}
+                  placeholder="Write a comment..."
+                  className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+                />
+                <button className="mt-2 bg-[#f7cf4a] px-4 py-1.5 text-sm font-semibold text-black hover:brightness-95">
+                  Post
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       ))}
     </div>
