@@ -1,5 +1,6 @@
 import type { ClickUpComment, ClickUpTask, CommentSegment } from '@/lib/clickup'
 import { ClickUpStatusPill } from './clickup-status-pill'
+import { TaskFileUpload } from './task-file-upload'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -179,6 +180,8 @@ export function ProjectTasks({
                 </button>
               </form>
             )}
+
+            {commentAction && accountId && <TaskFileUpload accountId={accountId} taskId={task.id} />}
           </div>
         </div>
       ))}
