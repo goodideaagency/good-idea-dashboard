@@ -351,3 +351,29 @@ export async function postTaskComment(taskId: string, authorLabel: string, text:
     return false
   }
 }
+
+// Uploads a file as an attachment on a task -- used for a Client Profile's
+// "Files" section, so brand assets/documents land directly on the profile
+// task in ClickUp where the team already works, instead of a separate store.
+// Note: ClickUp's API has no attachment-delete endpoint, so removal has to
+// happen in ClickUp directly.
+export async function uploadTaskAttachment(
+  taskId: string,
+  file: Blob,
+  filename: string
+): Promise<ClickUpAttachment | null> {
+  try {
+    const form = new FormData()
+    form.append('attachment', file, filename)
+    const res = await fetch(`${BASE_URL}/task/${taskId}/attachment`, {
+      method: 'POST',
+      headers: headers(),
+      body: form,
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return { id: data.id, title: data.title ?? data.name ?? filename, url: data.url }
+  } catch {
+    return null
+  }
+}

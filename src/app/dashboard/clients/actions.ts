@@ -64,7 +64,12 @@ export async function createClientProfile(formData: FormData) {
 
     if (profilesListId) {
       const details = website ? `Website: ${website}` : undefined
-      await createTask(profilesListId, `Client Profile — ${name}`, { description: details })
+      const profileTask = await createTask(profilesListId, `Client Profile — ${name}`, {
+        description: details,
+      })
+      if (profileTask) {
+        await admin.from('accounts').update({ clickup_profile_task_id: profileTask.id }).eq('id', account.id)
+      }
     }
   }
 

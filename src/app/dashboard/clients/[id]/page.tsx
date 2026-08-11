@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ClickUpStatusPill } from '@/components/clickup-status-pill'
 import { LogoUploader } from '@/components/logo-uploader'
 import { AccountFiles } from '@/components/account-files'
-import { listTaskSummariesForAccount } from '@/lib/clickup'
+import { getTask, listTaskSummariesForAccount } from '@/lib/clickup'
 import { updateClientProfile } from '../actions'
 
 const inputCls =
@@ -16,6 +16,7 @@ type AccountRow = {
   website: string | null
   logo_url: string | null
   clickup_list_id: string | null
+  clickup_profile_task_id: string | null
 }
 
 export default async function ClientProfilePage({
@@ -31,24 +32,21 @@ export default async function ClientProfilePage({
   if (!user) redirect('/login')
 
   // Row-level security ensures this only returns an account in the user's agency.
-  const [{ data: account }, { data: files }] = await Promise.all([
-    supabase
-      .from('accounts')
-      .select('id, name, website, logo_url, clickup_list_id')
-      .eq('id', id)
-      .maybeSingle<AccountRow>(),
-    supabase
-      .from('account_files')
-      .select('id, name, url, size_bytes, created_at')
-      .eq('account_id', id)
-      .order('created_at', { ascending: false }),
-  ])
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('id, name, website, logo_url, clickup_list_id, clickup_profile_task_id')
+    .eq('id', id)
+    .maybeSingle<AccountRow>()
 
   if (!account) redirect('/dashboard/clients')
 
-  const projectTasks = account.clickup_list_id
-    ? await listTaskSummariesForAccount(account.clickup_list_id)
-    : []
+  // Files live as attachments on the Client Profile task in ClickUp -- read
+  // straight from there rather than a local copy.
+  const [projectTasks, profileTask] = await Promise.all([
+    account.clickup_list_id ? listTaskSummariesForAccount(account.clickup_list_id) : [],
+    account.clickup_profile_task_id ? getTask(account.clickup_profile_task_id) : null,
+  ])
+  const files = profileTask?.attachments ?? []
 
   return (
     <div>
@@ -107,7 +105,11 @@ export default async function ClientProfilePage({
 
         <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">Files</p>
         <div className="mt-4">
-          <AccountFiles accountId={account.id} initialFiles={files ?? []} />
+          <AccountFiles
+            accountId={account.id}
+            initialFiles={files}
+            canUpload={Boolean(account.clickup_profile_task_id)}
+          />
         </div>
 
         <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
