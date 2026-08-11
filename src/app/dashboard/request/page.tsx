@@ -25,7 +25,7 @@ export default async function RequestServicePage() {
       <p className="mt-1 text-sm text-gray-500">Select a service below to start your new project.</p>
 
       <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">Services</p>
-      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {ONE_TIME_SERVICES.map((s) => (
           <div
             key={s.key}
@@ -48,7 +48,7 @@ export default async function RequestServicePage() {
           No managed plans available for your agency yet. Contact Good Idea to get set up.
         </p>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((p) => (
             <div
               key={p.id}
