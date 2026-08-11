@@ -26,37 +26,6 @@ export async function login(formData: FormData) {
   redirect('/dashboard')
 }
 
-export async function signup(formData: FormData) {
-  const supabase = await createClient()
-  const name = String(formData.get('name') || '').trim()
-  const agencyName = String(formData.get('agencyName') || '').trim()
-
-  if (!name) {
-    redirect('/login?error=' + encodeURIComponent('Please enter your name to sign up.'))
-  }
-  if (!agencyName) {
-    redirect('/login?error=' + encodeURIComponent('Please enter your agency name to sign up.'))
-  }
-
-  const { error } = await supabase.auth.signUp({
-    email: String(formData.get('email')),
-    password: String(formData.get('password')),
-    options: {
-      // agency_name is read by the database trigger that creates the agency
-      // record; full_name is just profile data (shown in the UI, used to
-      // label ClickUp comments).
-      data: { agency_name: agencyName, full_name: name },
-    },
-  })
-
-  if (error) {
-    redirect('/login?error=' + encodeURIComponent(error.message))
-  }
-
-  revalidatePath('/', 'layout')
-  redirect('/dashboard')
-}
-
 export async function signout() {
   const supabase = await createClient()
   await supabase.auth.signOut()

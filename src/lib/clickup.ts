@@ -279,6 +279,24 @@ export async function updateTaskMarkdownDescription(
   }
 }
 
+// Creates a new Folder inside a Space -- used to auto-provision a brand-new
+// agency's own Folder (which every one of its client Lists then lives under)
+// the moment they sign up.
+export async function createFolder(spaceId: string, name: string): Promise<{ id: string } | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/space/${spaceId}/folder`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.id ? { id: data.id } : null
+  } catch {
+    return null
+  }
+}
+
 // Creates a new List inside a Folder -- used to auto-provision a brand-new
 // client's own List the moment their Client Profile is created.
 export async function createList(folderId: string, name: string): Promise<{ id: string } | null> {

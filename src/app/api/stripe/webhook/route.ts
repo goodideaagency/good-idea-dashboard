@@ -5,6 +5,7 @@ import { stripe } from '@/lib/stripe'
 import { upsertSubscriptionFromStripe } from '@/lib/subscriptions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { forfeitAgencyCredits, grantAgencyCredits } from '@/lib/credits'
+import { provisionSignupAgency } from '@/lib/signup'
 
 // Only these billing reasons grant credits -- 'subscription_create' is the
 // first invoice (signup), 'subscription_cycle' is a renewal. Other reasons
@@ -61,6 +62,14 @@ export async function POST(request: NextRequest) {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
+
+      if (session.mode === 'subscription' && session.metadata?.signup === 'true') {
+        // Primary path for turning a signup checkout into a real agency --
+        // the checkout return page also calls this (idempotent) as a
+        // fallback in case this event is delayed or never delivered.
+        await provisionSignupAgency(session)
+      }
+
       if (session.mode === 'payment' && session.metadata?.credit_topup === 'true') {
         const agencyId = session.metadata.agency_id
         const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
@@ -93,6 +102,16 @@ export async function POST(request: NextRequest) {
         const agencyId = subscription.metadata?.agency_id
         const product = subscription.items.data[0]?.price?.product as Stripe.Product | undefined
         const creditsPerCycle = Number(product?.metadata?.credits_per_cycle ?? 0)
+
+        if (creditsPerCycle > 0 && !agencyId) {
+          // For a brand-new signup, this subscription's agency_id gets
+          // tagged by provisionSignupAgency in response to a SEPARATE event
+          // (checkout.session.completed), and Stripe doesn't guarantee that
+          // arrives before this one. Rather than silently losing the grant,
+          // fail so Stripe retries this delivery later -- by then tagging
+          // has almost certainly happened.
+          throw new Error(`invoice.paid for ${subId}: credits-granting subscription has no agency_id yet`)
+        }
 
         if (agencyId && creditsPerCycle > 0) {
           await grantAgencyCredits(agencyId, creditsPerCycle, source, {
