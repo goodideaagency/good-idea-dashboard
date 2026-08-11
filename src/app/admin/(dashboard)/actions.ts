@@ -9,6 +9,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/admin-auth'
 import { stripe } from '@/lib/stripe'
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
+import { createList } from '@/lib/clickup'
+import { upsertSubscriptionFromStripe } from '@/lib/subscriptions'
 
 // Logs the calling admin into a real session as the target agency user --
 // full read/write access, exactly what that user would see. Works by
@@ -191,4 +193,88 @@ export async function backfillSubscriptionMetadata() {
 
   revalidatePath('/admin')
   redirect(`/admin?backfilled=${updated}&backfillFailed=${failed}`)
+}
+
+// Attaches a Stripe subscription that was created OUTSIDE our checkout flow
+// (e.g. a client added a service directly in the Stripe customer portal) to
+// an account on this agency -- either an existing one, or a brand-new one
+// created from name/website, auto-provisioned a ClickUp List the same way a
+// normal checkout would. Tags the subscription/customer with our usual
+// account_id/agency_id metadata so it behaves identically to one that went
+// through the platform from the start (renewal/cancellation webhooks,
+// admin views, etc. all key off that metadata).
+export async function attachExternalSubscription(formData: FormData) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!(await isAdmin(user?.email))) redirect('/dashboard')
+
+  const agencyId = String(formData.get('agency_id') || '').trim()
+  const subscriptionId = String(formData.get('subscription_id') || '').trim()
+  const existingAccountId = String(formData.get('account_id') || '').trim()
+  const name = String(formData.get('name') || '').trim()
+  const website = String(formData.get('website') || '').trim()
+  if (!agencyId || !subscriptionId) redirect('/admin')
+
+  const admin = createAdminClient()
+  const { data: agency } = await admin
+    .from('agencies')
+    .select('id, name, clickup_folder_id')
+    .eq('id', agencyId)
+    .maybeSingle()
+  if (!agency) redirect('/admin')
+
+  let accountId: string
+  let accountName: string
+  if (existingAccountId) {
+    const { data: acct } = await admin
+      .from('accounts')
+      .select('id, name')
+      .eq('id', existingAccountId)
+      .maybeSingle()
+    if (!acct) redirect(`/admin/agencies/${agencyId}?error=` + encodeURIComponent('Account not found.'))
+    accountId = acct!.id
+    accountName = acct!.name
+  } else {
+    if (!name) redirect(`/admin/agencies/${agencyId}?error=` + encodeURIComponent('Business name is required.'))
+    const { data: account } = await admin
+      .from('accounts')
+      .insert({ agency_id: agencyId, name, website: website || null })
+      .select('id, name')
+      .single()
+    if (!account) redirect(`/admin/agencies/${agencyId}?error=` + encodeURIComponent('Could not create account.'))
+    accountId = account!.id
+    accountName = account!.name
+
+    if (agency.clickup_folder_id) {
+      const list = await createList(agency.clickup_folder_id, accountName)
+      if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', accountId)
+    }
+  }
+
+  const metadata = {
+    account_id: accountId,
+    account_name: accountName,
+    agency_id: agency.id,
+    agency_name: agency.name,
+  }
+
+  try {
+    const subscription = await stripe.subscriptions.update(subscriptionId, { metadata })
+    const customerId =
+      typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id
+    await stripe.customers.update(customerId, {
+      metadata: { agency_id: agency.id, agency_name: agency.name },
+    })
+    await upsertSubscriptionFromStripe(subscription)
+  } catch {
+    redirect(
+      `/admin/agencies/${agencyId}?error=` +
+        encodeURIComponent('Could not find or update that subscription in Stripe.')
+    )
+  }
+
+  revalidatePath(`/admin/agencies/${agencyId}`)
+  redirect(`/admin/agencies/${agencyId}`)
 }

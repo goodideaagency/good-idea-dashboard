@@ -5,14 +5,20 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
 import { StatusBadges, planLabel } from '@/components/status-badge'
-import { setAgencyArchived, impersonateUser } from '../../actions'
+import { setAgencyArchived, impersonateUser, attachExternalSubscription } from '../../actions'
+
+const inputCls =
+  'mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
 
 export default async function AgencyDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ agencyId: string }>
+  searchParams: Promise<{ error?: string }>
 }) {
   const { agencyId } = await params
+  const { error } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -95,6 +101,8 @@ export default async function AgencyDetailPage({
         </Link>
       </div>
 
+      {error && <p className="mt-4 max-w-2xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <span className="bg-[#F5EFE2] px-3 py-1.5 text-sm font-medium text-gray-900 ring-1 ring-[#ece7d8]">
           {formatMoney(agencyMrrCents)}/mo
@@ -135,6 +143,64 @@ export default async function AgencyDetailPage({
           </div>
         </>
       )}
+
+      <p className="mt-8 text-xs font-mono uppercase tracking-wide text-gray-400">
+        Attach existing Stripe subscription
+      </p>
+      <p className="mt-1 text-sm text-gray-500">
+        For a subscription a client added directly in Stripe, outside the platform's checkout.
+      </p>
+      <form action={attachExternalSubscription} className="mt-3 max-w-2xl space-y-4 bg-white p-5 ring-1 ring-[#ece7d8]">
+        <input type="hidden" name="agency_id" value={agency.id} />
+        <div>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="subscription_id">
+            Stripe subscription ID
+          </label>
+          <input
+            id="subscription_id"
+            name="subscription_id"
+            type="text"
+            required
+            placeholder="sub_..."
+            className={`${inputCls} font-mono`}
+          />
+        </div>
+
+        {accounts.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="account_id">
+              Account <span className="font-normal text-gray-400">(leave as New account below to create one)</span>
+            </label>
+            <select id="account_id" name="account_id" defaultValue="" className={inputCls}>
+              <option value="">+ New account</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="name">
+              New account business name
+            </label>
+            <input id="name" name="name" type="text" placeholder="Nations Pure" className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="website">
+              Website <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input id="website" name="website" type="text" placeholder="nationspure.com" className={inputCls} />
+          </div>
+        </div>
+
+        <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+          Attach subscription
+        </button>
+      </form>
 
       {accounts.length === 0 ? (
         <div className="mt-6 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
