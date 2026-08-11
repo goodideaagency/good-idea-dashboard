@@ -15,9 +15,15 @@ export async function agencyIsCreditEligible(agencyId: string): Promise<boolean>
   if (priceIds.length === 0) return false
 
   for (const priceId of priceIds) {
-    const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
-    const product = price.product as import('stripe').default.Product
-    if (Number(product?.metadata?.credits_per_cycle ?? 0) > 0) return true
+    try {
+      const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
+      const product = price.product as import('stripe').default.Product
+      if (Number(product?.metadata?.credits_per_cycle ?? 0) > 0) return true
+    } catch {
+      // A subscription row can reference a price that no longer resolves
+      // (deleted, or from a different Stripe mode than the app's key) --
+      // skip it rather than failing the whole dashboard load.
+    }
   }
   return false
 }
