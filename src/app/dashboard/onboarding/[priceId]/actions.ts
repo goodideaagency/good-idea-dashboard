@@ -8,8 +8,10 @@ import {
   getListFields,
   linkTasks,
   setTaskCustomField,
+  updateTaskMarkdownDescription,
 } from '@/lib/clickup'
 import { getManagedServiceByPriceId } from '@/lib/service-catalog'
+import { formatIntakeSummary } from '@/lib/intake-summary'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFieldValue(type: string, raw: FormDataEntryValue | null): any {
@@ -59,17 +61,26 @@ export async function submitManagedServiceIntake(formData: FormData) {
     .map((f) => ({ id: f.id, value: parseFieldValue(f.type, formData.get(`field_${f.id}`)) }))
     .filter((f) => f.value !== undefined)
 
+  // A readable, grouped writeup of the answers -- this becomes the task's
+  // description so the team sees a clean summary up top instead of having to
+  // piece it together from ClickUp's cramped, truncated Custom Fields sidebar.
+  const summary = formatIntakeSummary(fields, service.sections, customFields)
+
   const internalTaskName = `${service.label} — ${account.name}`
   const internalTask = service.templateId
     ? await createTaskFromTemplate(service.internalListId, service.templateId, internalTaskName)
-    : await createTask(service.internalListId, internalTaskName, { customFields })
+    : await createTask(service.internalListId, internalTaskName, {
+        customFields,
+        markdownDescription: summary,
+      })
 
-  // Template-based creation ignores custom_fields in the create call, so set
-  // each answer afterward.
+  // Template-based creation ignores custom_fields/description in the create
+  // call, so set each afterward.
   if (service.templateId && internalTask) {
     for (const cf of customFields) {
       await setTaskCustomField(internalTask.id, cf.id, cf.value)
     }
+    await updateTaskMarkdownDescription(internalTask.id, summary)
   }
 
   const clientTask = await createTask(account.clickup_list_id, service.clientTaskName, {

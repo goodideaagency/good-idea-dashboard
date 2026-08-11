@@ -212,6 +212,7 @@ export async function createTask(
   opts: {
     status?: string
     description?: string
+    markdownDescription?: string
     customFields?: { id: string; value: unknown }[]
   } = {}
 ): Promise<{ id: string; url: string } | null> {
@@ -223,7 +224,14 @@ export async function createTask(
       body: JSON.stringify({
         name,
         ...(opts.status ? { status: opts.status } : {}),
-        ...(opts.description ? { description: opts.description } : {}),
+        // markdown_description renders real headers/bold in ClickUp's UI --
+        // preferred over plain description whenever we have structured
+        // content (e.g. a grouped intake-answers summary) worth formatting.
+        ...(opts.markdownDescription
+          ? { markdown_description: opts.markdownDescription }
+          : opts.description
+            ? { description: opts.description }
+            : {}),
         ...(opts.customFields ? { custom_fields: opts.customFields } : {}),
         ...(assignees.length > 0 ? { assignees } : {}),
       }),
@@ -245,6 +253,25 @@ export async function assignTask(taskId: string, userIds: number[]): Promise<boo
       method: 'PUT',
       headers: { ...headers(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ assignees: { add: userIds, rem: [] } }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+// Sets an existing task's description from markdown -- same follow-up-call
+// need as assignTask, for template-based creation (which likely ignores an
+// inline description the same way it ignores custom_fields/assignees).
+export async function updateTaskMarkdownDescription(
+  taskId: string,
+  markdown: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}`, {
+      method: 'PUT',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markdown_description: markdown }),
     })
     return res.ok
   } catch {
