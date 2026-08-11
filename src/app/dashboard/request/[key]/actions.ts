@@ -79,7 +79,12 @@ export async function submitServiceRequest(formData: FormData) {
   // service-catalog.ts) since ClickUp doesn't cleanly scope fields to one List.
   const allFields = await getListFields(service.internalListId)
   const fields = allFields.filter((f) => service.fieldIds.includes(f.id))
+  // Attachment-type custom fields render as a file input (see
+  // ServiceFormFields) but aren't wired up to ClickUp's attachment API here --
+  // no service currently lists one, so this just guards against a future
+  // File object being sent as a plain field value.
   const customFields = fields
+    .filter((f) => f.type !== 'attachment')
     .map((f) => ({ id: f.id, value: parseFieldValue(f.type, formData.get(`field_${f.id}`)) }))
     .filter((f) => f.value !== undefined)
   customFields.push({ id: CREDIT_COST_FIELD_ID, value: service.baseCreditCost })

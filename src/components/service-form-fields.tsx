@@ -4,13 +4,23 @@ import type { FieldSection } from '@/lib/service-catalog'
 const inputCls =
   'mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
 
+// Every field is required except checkboxes (an unchecked, optional box is
+// meaningful -- forcing it checked would break e.g. "Rush this audit?") and
+// file/attachment uploads, which stay optional per policy: never block
+// submission on a file. Everything else must be filled in since there's no
+// draft-saving yet -- an abandoned form means nothing was captured at all.
 function FieldInput({ f }: { f: ClickUpField }) {
   if (f.type === 'checkbox') {
     return <input id={`field-${f.id}`} name={`field_${f.id}`} type="checkbox" className="mt-1 h-4 w-4" />
   }
+  if (f.type === 'attachment') {
+    return (
+      <input id={`field-${f.id}`} name={`field_${f.id}`} type="file" className="mt-1 text-sm text-gray-700" />
+    )
+  }
   if (f.type === 'drop_down') {
     return (
-      <select id={`field-${f.id}`} name={`field_${f.id}`} className={inputCls}>
+      <select id={`field-${f.id}`} name={`field_${f.id}`} required className={inputCls}>
         <option value="">Select...</option>
         {f.options.map((o) => (
           <option key={o.id} value={o.id}>
@@ -21,18 +31,18 @@ function FieldInput({ f }: { f: ClickUpField }) {
     )
   }
   if (f.type === 'number') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="number" className={inputCls} />
+    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="number" required className={inputCls} />
   }
   if (f.type === 'date') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="date" className={inputCls} />
+    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="date" required className={inputCls} />
   }
   if (f.type === 'url') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="url" className={inputCls} />
+    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="url" required className={inputCls} />
   }
   if (f.type === 'email') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="email" className={inputCls} />
+    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="email" required className={inputCls} />
   }
-  return <textarea id={`field-${f.id}`} name={`field_${f.id}`} rows={3} className={inputCls} />
+  return <textarea id={`field-${f.id}`} name={`field_${f.id}`} rows={3} required className={inputCls} />
 }
 
 function Field({ f }: { f: ClickUpField }) {

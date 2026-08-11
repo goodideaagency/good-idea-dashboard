@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getListFields } from '@/lib/clickup'
 import { getManagedServiceByPriceId } from '@/lib/service-catalog'
 import { ServiceFormFields } from '@/components/service-form-fields'
+import { UnsavedFormGuard } from '@/components/unsaved-form-guard'
 import { submitManagedServiceIntake } from './actions'
 
 // Lands here right after a successful Stripe Checkout for a managed/recurring
@@ -51,7 +52,8 @@ export default async function ManagedServiceOnboardingPage({
       <div className="mt-6 max-w-xl bg-white p-6 ring-1 ring-[#ece7d8]">
         {error && <p className="mb-4 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-        <form action={submitManagedServiceIntake} className="space-y-4">
+        <form id="onboarding-form" action={submitManagedServiceIntake} className="space-y-4">
+          {fields.length > 0 && <UnsavedFormGuard formId="onboarding-form" />}
           <input type="hidden" name="price_id" value={priceId} />
           <input type="hidden" name="account_id" value={account.id} />
 

@@ -5,6 +5,7 @@ import { getListFields } from '@/lib/clickup'
 import { getServiceByKey } from '@/lib/service-catalog'
 import { getAgencyCreditBalance } from '@/lib/credits'
 import { ServiceFormFields } from '@/components/service-form-fields'
+import { UnsavedFormGuard } from '@/components/unsaved-form-guard'
 import { submitServiceRequest } from './actions'
 
 const inputCls =
@@ -89,7 +90,13 @@ export default async function RequestServiceFormPage({
             </Link>
           </p>
         ) : (
-          <form action={submitServiceRequest} encType="multipart/form-data" className="space-y-4">
+          <form
+            id="request-form"
+            action={submitServiceRequest}
+            encType="multipart/form-data"
+            className="space-y-4"
+          >
+            <UnsavedFormGuard formId="request-form" />
             <input type="hidden" name="service_key" value={service.key} />
 
             <div>
@@ -130,6 +137,7 @@ export default async function RequestServiceFormPage({
                     id="description"
                     name="description"
                     rows={4}
+                    required
                     className={inputCls}
                     placeholder="What do you need for this request?"
                   />
