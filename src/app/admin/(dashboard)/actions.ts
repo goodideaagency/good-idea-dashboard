@@ -1,11 +1,66 @@
 'use server'
 
+import { randomUUID } from 'crypto'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/admin-auth'
 import { stripe } from '@/lib/stripe'
+import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
+
+// Logs the calling admin into a real session as the target agency user --
+// full read/write access, exactly what that user would see. Works by
+// minting a Supabase magic-link token server-side (never emailed) and
+// following it via /auth/confirm, so every existing RLS/auth check in the
+// app keeps working unmodified -- there's no special-cased "impersonating"
+// branch anywhere except the return trip.
+export async function impersonateUser(formData: FormData) {
+  const supabase = await createClient()
+  const {
+    data: { user: adminUser },
+  } = await supabase.auth.getUser()
+  if (!(await isAdmin(adminUser?.email))) redirect('/dashboard')
+
+  const targetUserId = String(formData.get('user_id') || '').trim()
+  if (!targetUserId) redirect('/admin')
+
+  const admin = createAdminClient()
+  const { data: targetUser } = await admin.auth.admin.getUserById(targetUserId)
+  const targetEmail = targetUser.user?.email
+  if (!targetEmail) redirect('/admin')
+
+  // A random, unguessable token is the ONLY thing the cookie carries -- the
+  // admin's actual email lives server-side, keyed by this token, so a
+  // tampered cookie value can't be used to impersonate an arbitrary admin
+  // on the way back (see returnToAdmin in dashboard/actions.ts).
+  const token = randomUUID()
+  await admin.from('admin_impersonation_sessions').insert({
+    token,
+    admin_email: adminUser!.email,
+    expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  })
+
+  const cookieStore = await cookies()
+  cookieStore.set(IMPERSONATION_COOKIE, token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60,
+  })
+
+  const { data: link, error } = await admin.auth.admin.generateLink({
+    type: 'magiclink',
+    email: targetEmail,
+  })
+  if (error || !link) redirect('/admin')
+
+  redirect(
+    `/auth/confirm?token_hash=${link.properties.hashed_token}&type=magiclink&next=${encodeURIComponent('/dashboard')}`
+  )
+}
 
 // Archiving/unarchiving is purely a visibility flag on the agencies row —
 // nothing in Stripe or Supabase auth is touched, so it's always reversible.

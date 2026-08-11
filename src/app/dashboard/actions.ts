@@ -1,12 +1,48 @@
 'use server'
 
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 import { createList } from '@/lib/clickup'
 import { ensureAgencyStripeCustomer } from '@/lib/subscriptions'
+import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
+
+// Ends an admin's impersonation session and logs them back into their own
+// admin account. The cookie only carries an opaque token -- the admin's
+// real email is looked up from admin_impersonation_sessions, a row that
+// only impersonateUser (already admin-gated) can create, and this token is
+// single-use and short-lived so a stolen/replayed cookie can't be reused.
+export async function returnToAdmin() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get(IMPERSONATION_COOKIE)?.value
+  cookieStore.delete(IMPERSONATION_COOKIE)
+  if (!token) redirect('/admin/login')
+
+  const admin = createAdminClient()
+  const { data: session } = await admin
+    .from('admin_impersonation_sessions')
+    .select('admin_email, expires_at, used_at')
+    .eq('token', token)
+    .maybeSingle()
+
+  if (!session || session.used_at || new Date(session.expires_at) < new Date()) {
+    redirect('/admin/login')
+  }
+
+  await admin.from('admin_impersonation_sessions').update({ used_at: new Date().toISOString() }).eq('token', token)
+
+  const { data: link, error } = await admin.auth.admin.generateLink({
+    type: 'magiclink',
+    email: session.admin_email,
+  })
+  if (error || !link) redirect('/admin/login')
+
+  redirect(
+    `/auth/confirm?token_hash=${link.properties.hashed_token}&type=magiclink&next=${encodeURIComponent('/admin')}`
+  )
+}
 
 // Adds a service (subscription) for the logged-in agency and sends them to
 // Stripe Checkout to pay for it. The service is attached either to an EXISTING

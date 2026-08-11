@@ -1,7 +1,10 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { AgencySidebar } from '@/components/agency-sidebar'
 import { agencyIsCreditEligible, getAgencyCreditBalance } from '@/lib/credits'
+import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
+import { returnToAdmin } from './actions'
 import { signout } from '../login/actions'
 
 export default async function DashboardLayout({
@@ -25,19 +28,34 @@ export default async function DashboardLayout({
     ? await Promise.all([getAgencyCreditBalance(agencyId), agencyIsCreditEligible(agencyId)])
     : [0, false]
 
+  // Just a presence check for display -- returnToAdmin re-verifies the
+  // token server-side before it's trusted for anything (see its own comment).
+  const cookieStore = await cookies()
+  const isImpersonating = Boolean(cookieStore.get(IMPERSONATION_COOKIE)?.value)
+
   return (
-    <div className="min-h-screen lg:flex">
-      <AgencySidebar
-        agencyName={agencyName}
-        userEmail={user.email ?? ''}
-        signout={signout}
-        unreadCount={unreadCount ?? 0}
-        creditBalance={creditBalance}
-        showCredits={creditEligible || creditBalance > 0}
-      />
-      <main className="min-w-0 flex-1 bg-white">
-        <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-10">{children}</div>
-      </main>
+    <div className="min-h-screen">
+      {isImpersonating && (
+        <div className="sticky top-0 z-50 flex items-center justify-center gap-3 bg-[#f7cf4a] px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-black font-mono">
+          Impersonating {agencyName}
+          <form action={returnToAdmin}>
+            <button className="underline underline-offset-2">Return to admin</button>
+          </form>
+        </div>
+      )}
+      <div className="lg:flex">
+        <AgencySidebar
+          agencyName={agencyName}
+          userEmail={user.email ?? ''}
+          signout={signout}
+          unreadCount={unreadCount ?? 0}
+          creditBalance={creditBalance}
+          showCredits={creditEligible || creditBalance > 0}
+        />
+        <main className="min-w-0 flex-1 bg-white">
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-10">{children}</div>
+        </main>
+      </div>
     </div>
   )
 }

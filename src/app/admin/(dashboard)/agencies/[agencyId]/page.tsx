@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
 import { StatusBadges, planLabel } from '@/components/status-badge'
-import { setAgencyArchived } from '../../actions'
+import { setAgencyArchived, impersonateUser } from '../../actions'
 
 export default async function AgencyDetailPage({
   params,
@@ -47,15 +47,21 @@ export default async function AgencyDetailPage({
   const subs = subsRes.data ?? []
   const members = membersRes.data ?? []
 
-  let email: string | undefined
-  if (members[0]) {
+  let memberEmails: { userId: string; email: string }[] = []
+  if (members.length > 0) {
     try {
       const { data } = await admin.auth.admin.listUsers({ perPage: 1000 })
-      email = data.users.find((u) => u.id === members[0].user_id)?.email
+      memberEmails = members
+        .map((m) => {
+          const found = data.users.find((u) => u.id === m.user_id)
+          return found?.email ? { userId: m.user_id as string, email: found.email } : null
+        })
+        .filter((m): m is { userId: string; email: string } => m !== null)
     } catch {
       // best effort
     }
   }
+  const email = memberEmails[0]?.email
 
   const subsByAccount = new Map<string, typeof subs>()
   for (const s of subs) {
@@ -110,6 +116,25 @@ export default async function AgencyDetailPage({
           </button>
         </form>
       </div>
+
+      {memberEmails.length > 0 && (
+        <>
+          <p className="mt-8 text-xs font-mono uppercase tracking-wide text-gray-400">Logins</p>
+          <div className="mt-3 max-w-2xl divide-y divide-[#f2ede0] bg-white ring-1 ring-[#ece7d8]">
+            {memberEmails.map((m) => (
+              <div key={m.userId} className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-gray-900">{m.email}</span>
+                <form action={impersonateUser}>
+                  <input type="hidden" name="user_id" value={m.userId} />
+                  <button className="border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
+                    Impersonate
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {accounts.length === 0 ? (
         <div className="mt-6 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
