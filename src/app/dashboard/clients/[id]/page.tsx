@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ClickUpStatusPill } from '@/components/clickup-status-pill'
+import { LogoUploader } from '@/components/logo-uploader'
+import { AccountFiles } from '@/components/account-files'
 import { listTaskSummariesForAccount } from '@/lib/clickup'
 import { updateClientProfile } from '../actions'
 
@@ -29,11 +31,18 @@ export default async function ClientProfilePage({
   if (!user) redirect('/login')
 
   // Row-level security ensures this only returns an account in the user's agency.
-  const { data: account } = await supabase
-    .from('accounts')
-    .select('id, name, website, logo_url, clickup_list_id')
-    .eq('id', id)
-    .maybeSingle<AccountRow>()
+  const [{ data: account }, { data: files }] = await Promise.all([
+    supabase
+      .from('accounts')
+      .select('id, name, website, logo_url, clickup_list_id')
+      .eq('id', id)
+      .maybeSingle<AccountRow>(),
+    supabase
+      .from('account_files')
+      .select('id, name, url, size_bytes, created_at')
+      .eq('account_id', id)
+      .order('created_at', { ascending: false }),
+  ])
 
   if (!account) redirect('/dashboard/clients')
 
@@ -48,72 +57,58 @@ export default async function ClientProfilePage({
           <h1 className="text-3xl font-semibold text-gray-900">{account.name}</h1>
           {account.website && <p className="mt-1 text-sm text-gray-500">{account.website}</p>}
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/dashboard/accounts/${account.id}`}
-            className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-          >
-            Billing →
-          </Link>
-          <Link
-            href="/dashboard/clients"
-            className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-          >
-            ← Back
-          </Link>
-        </div>
+        <Link
+          href="/dashboard/clients"
+          className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+        >
+          ← Back
+        </Link>
       </div>
 
       <div className="mx-auto mt-8 max-w-3xl">
         <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Client profile</p>
-        <form
-          action={updateClientProfile}
-          className="mt-4 grid gap-4 bg-white p-5 ring-1 ring-[#ece7d8] sm:grid-cols-2"
-        >
-          <input type="hidden" name="account_id" value={account.id} />
-          <div>
-            <label className="block text-sm font-medium text-gray-700" htmlFor="name">
-              Client company name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              defaultValue={account.name}
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700" htmlFor="website">
-              Website
-            </label>
-            <input
-              id="website"
-              name="website"
-              type="text"
-              defaultValue={account.website ?? ''}
-              className={inputCls}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700" htmlFor="logo_url">
-              Logo URL
-            </label>
-            <input
-              id="logo_url"
-              name="logo_url"
-              type="url"
-              defaultValue={account.logo_url ?? ''}
-              className={inputCls}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
-              Save profile
-            </button>
-          </div>
-        </form>
+        <div className="mt-4 bg-white p-5 ring-1 ring-[#ece7d8]">
+          <LogoUploader accountId={account.id} currentUrl={account.logo_url} />
+
+          <form action={updateClientProfile} className="mt-6 grid gap-4 sm:grid-cols-2">
+            <input type="hidden" name="account_id" value={account.id} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="name">
+                Client company name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                defaultValue={account.name}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="website">
+                Website
+              </label>
+              <input
+                id="website"
+                name="website"
+                type="text"
+                defaultValue={account.website ?? ''}
+                className={inputCls}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+                Save profile
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">Files</p>
+        <div className="mt-4">
+          <AccountFiles accountId={account.id} initialFiles={files ?? []} />
+        </div>
 
         <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
           Projects{projectTasks.length > 0 ? ` (${projectTasks.length})` : ''}

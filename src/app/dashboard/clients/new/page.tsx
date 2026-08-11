@@ -49,12 +49,9 @@ export default async function NewClientProfilePage({
             </label>
             <input id="website" name="website" type="text" placeholder="joesplumbing.com" className={inputCls} />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700" htmlFor="logo_url">
-              Logo URL <span className="font-normal text-gray-400">(optional)</span>
-            </label>
-            <input id="logo_url" name="logo_url" type="url" placeholder="https://..." className={inputCls} />
-          </div>
+          <p className="text-xs text-gray-400">
+            You can upload a logo and other files once the profile is created.
+          </p>
           <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
             Create profile
           </button>

@@ -9,8 +9,9 @@ import { createList, createTask } from '@/lib/clickup'
 // Creates a Client Profile -- no payment involved. If the agency's ClickUp
 // Folder is connected, this also auto-provisions the client's own ClickUp
 // List (so your team sees it immediately) and drops a "Client Profile" task
-// in it with the basic info, so it's visible without needing Custom Fields
-// for a handful of static questions.
+// into the agency's dedicated Client Profiles List -- NOT the client's own
+// List -- so it's a reference record for your team, not something that
+// shows up as a project to work on anywhere in the app or Internal Ops.
 export async function createClientProfile(formData: FormData) {
   const supabase = await createClient()
   const {
@@ -20,7 +21,6 @@ export async function createClientProfile(formData: FormData) {
 
   const name = String(formData.get('name') || '').trim()
   const website = String(formData.get('website') || '').trim()
-  const logoUrl = String(formData.get('logo_url') || '').trim()
   if (!name) {
     redirect('/dashboard/clients/new?error=' + encodeURIComponent('Please enter a client name.'))
   }
@@ -35,14 +35,14 @@ export async function createClientProfile(formData: FormData) {
   const admin = createAdminClient()
   const { data: agency } = await admin
     .from('agencies')
-    .select('id, clickup_folder_id')
+    .select('id, clickup_folder_id, clickup_profiles_list_id')
     .eq('id', membership.agency_id)
     .single()
   if (!agency) redirect('/dashboard/clients')
 
   const { data: account } = await admin
     .from('accounts')
-    .insert({ agency_id: agency.id, name, website: website || null, logo_url: logoUrl || null })
+    .insert({ agency_id: agency.id, name, website: website || null })
     .select('id')
     .single()
   if (!account) redirect('/dashboard/clients')
@@ -51,13 +51,20 @@ export async function createClientProfile(formData: FormData) {
     const list = await createList(agency.clickup_folder_id, name)
     if (list) {
       await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
-      const details = [
-        website ? `Website: ${website}` : null,
-        logoUrl ? `Logo: ${logoUrl}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n')
-      await createTask(list.id, 'Client Profile', { description: details })
+    }
+
+    let profilesListId = agency.clickup_profiles_list_id
+    if (!profilesListId) {
+      const profilesList = await createList(agency.clickup_folder_id, 'Client Profiles')
+      if (profilesList) {
+        profilesListId = profilesList.id
+        await admin.from('agencies').update({ clickup_profiles_list_id: profilesList.id }).eq('id', agency.id)
+      }
+    }
+
+    if (profilesListId) {
+      const details = website ? `Website: ${website}` : undefined
+      await createTask(profilesListId, `Client Profile — ${name}`, { description: details })
     }
   }
 
@@ -77,7 +84,6 @@ export async function updateClientProfile(formData: FormData) {
   const accountId = String(formData.get('account_id') || '').trim()
   const name = String(formData.get('name') || '').trim()
   const website = String(formData.get('website') || '').trim()
-  const logoUrl = String(formData.get('logo_url') || '').trim()
   if (!accountId || !name) redirect('/dashboard/clients')
 
   const { data: owned } = await supabase
@@ -88,10 +94,7 @@ export async function updateClientProfile(formData: FormData) {
   if (!owned) redirect('/dashboard/clients')
 
   const admin = createAdminClient()
-  await admin
-    .from('accounts')
-    .update({ name, website: website || null, logo_url: logoUrl || null })
-    .eq('id', accountId)
+  await admin.from('accounts').update({ name, website: website || null }).eq('id', accountId)
 
   revalidatePath(`/dashboard/clients/${accountId}`)
   revalidatePath('/dashboard/clients')
