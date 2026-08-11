@@ -12,6 +12,13 @@ function money(cents: number, currency: string) {
   )
 }
 
+// Stripe's live and test dashboards are different URLs -- detect which mode
+// the configured key is in so the link actually lands on the right one.
+const isTestMode = (process.env.STRIPE_SECRET_KEY ?? '').startsWith('sk_test_')
+function stripeProductUrl(productId: string) {
+  return `https://dashboard.stripe.com/${isTestMode ? 'test/' : ''}products/${productId}`
+}
+
 type ProductRow = { product: Stripe.Product; prices: Stripe.Price[] }
 
 export default async function ProductsPage() {
@@ -57,15 +64,15 @@ export default async function ProductsPage() {
       <h1 className="text-3xl font-semibold text-gray-900">Products</h1>
       <p className="mt-1 text-sm text-gray-500">Choose which plans appear in the billing platform</p>
 
-      <div className="mx-auto mt-6 max-w-3xl">
+      <div className="mt-6">
         <p className="text-sm text-gray-500">
           A product only appears in an agency&apos;s &ldquo;Add account&rdquo; plan list if you show it
           here. Turn everything off to hide it completely.
         </p>
 
-        <div className="mt-5 space-y-4">
+        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {products.length === 0 && (
-            <div className="border border-dashed border-[#e7e2d3] bg-white p-8 text-center text-sm text-gray-500">
+            <div className="border border-dashed border-[#e7e2d3] bg-white p-8 text-center text-sm text-gray-500 lg:col-span-3">
               No active recurring products found in Stripe.
             </div>
           )}
@@ -99,6 +106,14 @@ export default async function ProductsPage() {
                   <div>
                     <p className="font-semibold text-gray-900">{product.name}</p>
                     <p className="text-sm text-gray-500">{priceLabel}</p>
+                    <a
+                      href={stripeProductUrl(product.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-block font-mono text-xs text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
+                    >
+                      {product.id}
+                    </a>
                   </div>
                   <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${state.cls}`}>
                     {state.text}
