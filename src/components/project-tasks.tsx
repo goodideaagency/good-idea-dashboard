@@ -108,16 +108,22 @@ export function ProjectTasks({
           {task.comments.length > 0 && (
             <div className="mt-4 border-t border-[#f0ecdf] pt-3">
               <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Comments</p>
-              <ul className="mt-2 max-h-72 space-y-3 overflow-y-auto pr-1">
-                {task.comments.map((c) => (
-                  <li key={c.id} className="text-sm">
-                    <p className="text-gray-900">
-                      <span className="font-medium">{c.author}</span>{' '}
-                      <span className="text-xs text-gray-400">{fmtDate(c.date)}</span>
-                    </p>
-                    <CommentBody segments={c.segments} />
-                  </li>
-                ))}
+              {/* Sorted newest-first, then rendered in a reversed flex column --
+                  visually that reads oldest-on-top/newest-on-bottom like a
+                  texting app, and the scroll container's default (top) position
+                  lands on the newest message instead of the oldest one. */}
+              <ul className="mt-2 flex max-h-72 flex-col-reverse gap-3 overflow-y-auto pr-1">
+                {[...task.comments]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((c) => (
+                    <li key={c.id} className="text-sm">
+                      <p className="text-gray-900">
+                        <span className="font-medium">{c.author}</span>{' '}
+                        <span className="text-xs text-gray-400">{fmtDate(c.date)}</span>
+                      </p>
+                      <CommentBody segments={c.segments} />
+                    </li>
+                  ))}
               </ul>
             </div>
           )}
