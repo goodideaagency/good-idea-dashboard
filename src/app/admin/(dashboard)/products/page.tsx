@@ -53,7 +53,7 @@ export default async function ProductsPage() {
   )
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">Products</h1>
       <p className="mt-1 text-sm text-gray-500">Choose which plans appear in the billing platform</p>
 

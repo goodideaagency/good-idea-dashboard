@@ -23,7 +23,7 @@ export default async function AdminsPage() {
   const admins = (data ?? []) as AdminRow[]
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">Admin access</h1>
       <p className="mt-1 text-sm text-gray-500">Who can open the admin area</p>
 

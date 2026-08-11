@@ -29,7 +29,7 @@ export default async function AdminTransactionsPage() {
   const txns = await listAllInvoices()
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">All transactions</h1>
       <p className="mt-1 text-sm text-gray-500">Every payment across all agencies.</p>
       <div className="mt-6 max-w-5xl">

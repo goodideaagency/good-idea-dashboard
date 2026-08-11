@@ -68,7 +68,7 @@ export default async function AdminAccountDetailPage({
   )
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900">{account.name}</h1>

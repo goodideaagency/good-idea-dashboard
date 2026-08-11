@@ -20,7 +20,7 @@ export default async function NotificationsPage() {
   const unreadCount = list.filter((n) => !n.read_at).length
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <h1 className="text-4xl font-semibold text-gray-900">Notifications</h1>
         {unreadCount > 0 && (

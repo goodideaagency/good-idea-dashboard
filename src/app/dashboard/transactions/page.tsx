@@ -40,7 +40,7 @@ export default async function TransactionsPage() {
     : []
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">Transactions</h1>
       <p className="mt-2 text-sm text-gray-500">Every payment across all your accounts.</p>
       <div className="mt-6 max-w-4xl">

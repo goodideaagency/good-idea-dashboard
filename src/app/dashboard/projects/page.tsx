@@ -82,7 +82,7 @@ export default async function ProjectsPage() {
     scoping.length === 0 && inProgress.length === 0 && queue.length === 0 && ongoing.length === 0
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">Projects</h1>
       <p className="mt-1 text-sm text-gray-500">Every project task across your accounts.</p>
 

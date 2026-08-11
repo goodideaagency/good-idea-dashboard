@@ -30,7 +30,7 @@ export default async function ProjectDetailPage({
   if (!account) redirect('/dashboard/projects')
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900">{task.name}</h1>
@@ -44,7 +44,7 @@ export default async function ProjectDetailPage({
         </Link>
       </div>
 
-      <div className="mx-auto mt-8 max-w-3xl">
+      <div className="mt-8">
         <ProjectTasks tasks={[task]} accountId={account.id} commentAction={postProjectComment} />
       </div>
     </div>

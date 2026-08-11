@@ -19,7 +19,7 @@ export default async function NewAgencyPage({
   if (!(await isAdmin(user.email))) redirect('/dashboard')
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">New agency</h1>
       <p className="mt-1 text-sm text-gray-500">Create a client agency and invite its owner</p>
 

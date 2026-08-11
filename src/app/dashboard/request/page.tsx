@@ -20,7 +20,7 @@ export default async function RequestServicePage() {
   const plans = await listPlansForAgency(agencyName)
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">Start a new project</h1>
       <p className="mt-1 text-sm text-gray-500">Select a service below to start your new project.</p>
 

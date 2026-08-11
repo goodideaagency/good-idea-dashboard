@@ -31,7 +31,7 @@ export default async function ArchivedAgenciesPage() {
   }
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-3xl font-semibold text-gray-900">Archived agencies</h1>
       <p className="mt-1 text-sm text-gray-500">
         Hidden from the main admin view. Nothing in Stripe is affected.

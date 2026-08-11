@@ -28,7 +28,9 @@ export default async function DashboardLayout({
         signout={signout}
         unreadCount={unreadCount ?? 0}
       />
-      <main className="min-w-0 flex-1 bg-white">{children}</main>
+      <main className="min-w-0 flex-1 bg-white">
+        <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-10">{children}</div>
+      </main>
     </div>
   )
 }

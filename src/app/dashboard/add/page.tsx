@@ -30,7 +30,7 @@ export default async function AddAccountPage({
   ])
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold text-gray-900">Add a service</h1>
         <Link

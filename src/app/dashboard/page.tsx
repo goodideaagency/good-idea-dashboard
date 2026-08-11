@@ -78,7 +78,7 @@ export default async function DashboardPage() {
   const upcoming = tasks.filter((t) => UPCOMING.has(t.status))
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-4xl font-semibold text-gray-900">Welcome back, {agencyName}!</h1>
 
       <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">

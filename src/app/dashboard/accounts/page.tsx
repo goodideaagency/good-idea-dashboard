@@ -35,7 +35,7 @@ export default async function AccountsPage() {
   const accountList = accounts ?? []
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <h1 className="text-4xl font-semibold text-gray-900">Managed Accounts</h1>
         <div className="text-right">

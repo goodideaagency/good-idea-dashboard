@@ -25,14 +25,16 @@ export default async function AdminDashboardLayout({
     .eq('archived', true)
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen lg:flex">
       <AdminSidebar
         email={user.email ?? ''}
         isSuperadmin={role === 'superadmin'}
         archivedCount={count ?? 0}
         signout={signout}
       />
-      <main className="min-w-0 flex-1 bg-white">{children}</main>
+      <main className="min-w-0 flex-1 bg-white">
+        <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-10">{children}</div>
+      </main>
     </div>
   )
 }
