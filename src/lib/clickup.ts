@@ -8,7 +8,7 @@ function headers() {
 // inline images and file attachments, so we preserve that shape rather than
 // flattening to a single string.
 export type CommentSegment =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; bold?: boolean }
   | { type: 'image'; url: string; alt: string }
   | { type: 'file'; url: string; name: string }
 
@@ -71,7 +71,7 @@ function normalizeCommentSegments(commentArr: any[]): CommentSegment[] {
     if (seg.type === 'attachment' && seg.attachment?.url) {
       return { type: 'file' as const, url: seg.attachment.url, name: seg.text ?? 'Attachment' }
     }
-    return { type: 'text' as const, text: seg.text ?? '' }
+    return { type: 'text' as const, text: seg.text ?? '', bold: seg.attributes?.bold === true }
   })
 }
 

@@ -1,4 +1,4 @@
-import type { ClickUpTask, CommentSegment } from '@/lib/clickup'
+import type { ClickUpComment, ClickUpTask, CommentSegment } from '@/lib/clickup'
 import { ClickUpStatusPill } from './clickup-status-pill'
 
 function fmtDate(iso: string) {
@@ -7,6 +7,25 @@ function fmtDate(iso: string) {
     month: 'short',
     day: 'numeric',
   })
+}
+
+// postTaskComment posts every platform comment through the single shared
+// "bot" ClickUp account, prefixing a bold name line so your ClickUp team can
+// tell who really wrote it (see clickup.ts). On the platform's own UI that
+// workaround needs to be invisible -- this detects that exact shape (bold
+// text segment immediately followed by a bare newline) and unwraps it back
+// into a normal "posted by that person" comment.
+function resolveDisplayComment(c: ClickUpComment): { author: string; segments: CommentSegment[] } {
+  const [first, second, ...rest] = c.segments
+  if (
+    first?.type === 'text' &&
+    first.bold &&
+    second?.type === 'text' &&
+    second.text === '\n'
+  ) {
+    return { author: first.text, segments: rest }
+  }
+  return { author: c.author, segments: c.segments }
 }
 
 // Renders a comment's segments in order: plain text (newlines preserved),
@@ -115,15 +134,18 @@ export function ProjectTasks({
               <ul className="mt-2 flex max-h-72 flex-col-reverse gap-3 overflow-y-auto pr-1">
                 {[...task.comments]
                   .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((c) => (
-                    <li key={c.id} className="text-sm">
-                      <p className="text-gray-900">
-                        <span className="font-medium">{c.author}</span>{' '}
-                        <span className="text-xs text-gray-400">{fmtDate(c.date)}</span>
-                      </p>
-                      <CommentBody segments={c.segments} />
-                    </li>
-                  ))}
+                  .map((c) => {
+                    const { author, segments } = resolveDisplayComment(c)
+                    return (
+                      <li key={c.id} className="text-sm">
+                        <p className="text-gray-900">
+                          <span className="font-medium">{author}</span>{' '}
+                          <span className="text-xs text-gray-400">{fmtDate(c.date)}</span>
+                        </p>
+                        <CommentBody segments={segments} />
+                      </li>
+                    )
+                  })}
               </ul>
             </div>
           )}
