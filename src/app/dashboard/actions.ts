@@ -49,7 +49,7 @@ export async function addServiceAndCheckout(formData: FormData) {
     const customer = await stripe.customers.create({
       name: agency.name,
       email: user.email ?? undefined,
-      metadata: { agency_id: agency.id },
+      metadata: { agency_id: agency.id, agency_name: agency.name },
     })
     customerId = customer.id
     await admin
@@ -61,15 +61,17 @@ export async function addServiceAndCheckout(formData: FormData) {
   // 2. Resolve the target account: an existing one (ownership enforced by RLS)
   //    or a brand-new one created from the submitted name/website.
   let accountId: string
+  let accountName: string
   let returnTo = '/dashboard'
   if (existingAccountId) {
     const { data: acct } = await supabase
       .from('accounts')
-      .select('id')
+      .select('id, name')
       .eq('id', existingAccountId)
       .maybeSingle()
     if (!acct) redirect('/dashboard')
     accountId = acct.id
+    accountName = acct.name
     returnTo = `/dashboard/accounts/${accountId}`
   } else {
     if (!name) redirect('/dashboard')
@@ -80,6 +82,7 @@ export async function addServiceAndCheckout(formData: FormData) {
       .single()
     if (!account) redirect('/dashboard')
     accountId = account.id
+    accountName = name
     returnTo = `/dashboard/accounts/${accountId}`
 
     // Same auto-provisioning a Client Profile gets -- without this, a
@@ -97,14 +100,27 @@ export async function addServiceAndCheckout(formData: FormData) {
     process.env.NEXT_PUBLIC_SITE_URL ??
     'http://localhost:3000'
 
+  // Both ids (for reliable programmatic lookup) and names (so a subscription
+  // is traceable to its agency/client just by looking at it in the Stripe
+  // dashboard -- no cross-referencing the platform or ClickUp required).
+  // Set on the subscription itself (not just the Checkout Session), since
+  // the session disappears after checkout but the subscription persists for
+  // the life of the relationship.
+  const stripeMetadata = {
+    account_id: accountId,
+    account_name: accountName,
+    agency_id: agency.id,
+    agency_name: agency.name,
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     subscription_data: {
-      metadata: { account_id: accountId, agency_id: agency.id },
+      metadata: stripeMetadata,
     },
-    metadata: { account_id: accountId, agency_id: agency.id },
+    metadata: stripeMetadata,
     success_url: `${origin}/dashboard/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}${returnTo}`,
     allow_promotion_codes: true,
