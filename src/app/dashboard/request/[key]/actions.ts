@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
@@ -74,6 +75,9 @@ export async function submitServiceRequest(formData: FormData) {
         encodeURIComponent("You don't have enough credits for this service.")
     )
   }
+  // The sidebar balance lives in the shared dashboard layout -- revalidate it
+  // now instead of waiting for its normal cache window to expire.
+  revalidatePath('/dashboard', 'layout')
 
   // Re-fetch the field schema server-side -- never trust field types/ids from
   // the client. Restricted to this service's allow-listed fields (see

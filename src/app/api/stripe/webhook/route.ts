@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
+import { revalidatePath } from 'next/cache'
 import { stripe } from '@/lib/stripe'
 import { upsertSubscriptionFromStripe } from '@/lib/subscriptions'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
           .in('status', ['active', 'trialing'])
         if ((count ?? 0) === 0) {
           await forfeitAgencyCredits(agencyId)
+          revalidatePath('/dashboard', 'layout')
         }
       }
     }
@@ -72,6 +74,7 @@ export async function POST(request: NextRequest) {
             stripeEventId: event.id,
             note: `${product?.name ?? 'Credit top-up'} purchase`,
           })
+          revalidatePath('/dashboard', 'layout')
         }
       }
     }
@@ -96,6 +99,7 @@ export async function POST(request: NextRequest) {
             stripeEventId: event.id,
             note: `${product?.name ?? 'Subscription'} — ${invoice.billing_reason}`,
           })
+          revalidatePath('/dashboard', 'layout')
         }
       }
     }

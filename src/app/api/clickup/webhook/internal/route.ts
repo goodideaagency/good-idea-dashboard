@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { verifyClickUpSignature } from '@/lib/clickup-webhooks'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { reconcileTaskCost } from '@/lib/credits'
@@ -43,5 +44,6 @@ export async function POST(req: NextRequest) {
   if (!request) return NextResponse.json({ ok: true })
 
   await reconcileTaskCost(request.agency_id, request.account_id, taskId, newTotalCost)
+  revalidatePath('/dashboard', 'layout')
   return NextResponse.json({ ok: true })
 }

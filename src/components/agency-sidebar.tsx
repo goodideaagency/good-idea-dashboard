@@ -57,17 +57,6 @@ export function AgencySidebar({
       <Link href="/dashboard/projects" className={navCls(pathname.startsWith('/dashboard/projects'))}>
         Projects
       </Link>
-      {showCredits && (
-        <Link
-          href="/dashboard/credits"
-          className={`flex items-center justify-between ${navCls(pathname.startsWith('/dashboard/credits'))}`}
-        >
-          Credits
-          <span className="bg-[#f7cf4a] px-1.5 py-0.5 text-[10px] font-semibold text-black">
-            {creditBalance ?? 0}
-          </span>
-        </Link>
-      )}
       <Link href="/dashboard/clients" className={navCls(pathname.startsWith('/dashboard/clients'))}>
         My Clients
       </Link>
@@ -140,7 +129,23 @@ export function AgencySidebar({
 
         {nav}
 
-        <div className="mt-auto border-t border-[#ece7d8] pt-4">
+        {showCredits && (
+          <Link
+            href="/dashboard/credits"
+            className={`mt-auto flex items-center justify-between px-3 py-2 text-sm font-medium ${
+              pathname.startsWith('/dashboard/credits')
+                ? 'bg-[#ece7d8] text-gray-900'
+                : 'text-gray-700 hover:bg-[#f6f1e4]'
+            }`}
+          >
+            Agency Credits
+            <span className="bg-[#f7cf4a] px-1.5 py-0.5 text-[10px] font-semibold text-black">
+              {creditBalance ?? 0}
+            </span>
+          </Link>
+        )}
+
+        <div className={`${showCredits ? '' : 'mt-auto'} border-t border-[#ece7d8] pt-4`}>
           <ProfileMenu agencyName={agencyName} userEmail={userEmail} signout={signout} />
         </div>
       </aside>
