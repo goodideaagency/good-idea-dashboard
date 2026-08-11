@@ -15,7 +15,7 @@ import {
 } from '@/lib/clickup'
 import { getServiceByKey, CREDIT_COST_FIELD_ID } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
-import { spendAgencyCredits } from '@/lib/credits'
+import { getAgencyCreditBalance, spendAgencyCredits } from '@/lib/credits'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFieldValue(type: string, raw: FormDataEntryValue | null): any {
@@ -62,22 +62,17 @@ export async function submitServiceRequest(formData: FormData) {
     )
   }
 
-  // Claims the credits up front, atomically -- fails clean with no ClickUp
-  // task created if the agency doesn't actually have enough (e.g. a second
-  // tab racing this one).
-  const spent = await spendAgencyCredits(agencyId, service.baseCreditCost, 'service_request', {
-    accountId,
-    note: service.label,
-  })
-  if (!spent) {
+  // Cheap up-front check so an agency with an obviously insufficient balance
+  // never gets a ClickUp task created for a request that's about to fail.
+  // The atomic spend below (after the task exists, so it can be tagged with
+  // the task id -- see reconcileTaskCost) is still the real gate.
+  const balance = await getAgencyCreditBalance(agencyId)
+  if (balance < service.baseCreditCost) {
     redirect(
       `/dashboard/request/${serviceKey}?error=` +
         encodeURIComponent("You don't have enough credits for this service.")
     )
   }
-  // The sidebar balance lives in the shared dashboard layout -- revalidate it
-  // now instead of waiting for its normal cache window to expire.
-  revalidatePath('/dashboard', 'layout')
 
   // Re-fetch the field schema server-side -- never trust field types/ids from
   // the client. Restricted to this service's allow-listed fields (see
@@ -118,6 +113,26 @@ export async function submitServiceRequest(formData: FormData) {
   if (internalTask && attachment instanceof File && attachment.size > 0) {
     await uploadTaskAttachment(internalTask.id, attachment, attachment.name)
   }
+
+  // Claims the credits now that the internal task exists, tagged with its id
+  // -- this is what lets a later "Credit Cost" field edit be reconciled as
+  // just the difference from this base charge, instead of the whole new
+  // total (see reconcileTaskCost/getAlreadyChargedForTask in lib/credits.ts).
+  // Atomic, so it's still the real gate against a race with another tab.
+  const spent = await spendAgencyCredits(agencyId, service.baseCreditCost, 'service_request', {
+    accountId,
+    clickupTaskId: internalTask?.id,
+    note: service.label,
+  })
+  if (!spent) {
+    redirect(
+      `/dashboard/request/${serviceKey}?error=` +
+        encodeURIComponent("You don't have enough credits for this service.")
+    )
+  }
+  // The sidebar balance lives in the shared dashboard layout -- revalidate it
+  // now instead of waiting for its normal cache window to expire.
+  revalidatePath('/dashboard', 'layout')
 
   const clientTask = await createTask(account.clickup_list_id, service.label, {
     status: 'scoping',
