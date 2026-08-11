@@ -1,7 +1,7 @@
 import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 
-export type PlanOption = { id: string; label: string; amount: number }
+export type PlanOption = { id: string; label: string; amount: number; creditsPerCycle: number }
 
 function money(cents: number) {
   return `$${(cents / 100).toLocaleString('en-US')}`
@@ -38,6 +38,7 @@ export async function listPlansForAgency(agencyName: string): Promise<PlanOption
           id: p.id,
           amount,
           label: `${product.name} — ${money(amount)}/${interval}`,
+          creditsPerCycle: Number(product.metadata?.credits_per_cycle ?? 0),
         }
       })
       .sort((a, b) => a.amount - b.amount)

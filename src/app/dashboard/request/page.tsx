@@ -17,7 +17,9 @@ export default async function RequestServicePage() {
     .eq('user_id', user.id)
     .maybeSingle()
   const agencyName = (membership?.agencies as { name?: string } | null)?.name ?? ''
-  const plans = await listPlansForAgency(agencyName)
+  const allPlans = await listPlansForAgency(agencyName)
+  const creditPlans = allPlans.filter((p) => p.creditsPerCycle > 0)
+  const plans = allPlans.filter((p) => p.creditsPerCycle === 0)
 
   return (
     <div>
@@ -44,6 +46,31 @@ export default async function RequestServicePage() {
           </div>
         ))}
       </div>
+
+      {creditPlans.length > 0 && (
+        <>
+          <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">Agency Credits</p>
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {creditPlans.map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
+              >
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">{p.label}</p>
+                  <p className="mt-1 text-sm text-gray-500">{p.creditsPerCycle} credits/cycle</p>
+                </div>
+                <Link
+                  href={`/dashboard/add?plan=${encodeURIComponent(p.id)}`}
+                  className="mt-8 flex items-center justify-center gap-2 bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+                >
+                  Start This Service
+                </Link>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">Managed Account</p>
       {plans.length === 0 ? (
