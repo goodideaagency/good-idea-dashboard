@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/admin-auth'
 import { stripe } from '@/lib/stripe'
-import { updateProductVisibility } from './actions'
+import { updateProductVisibility, updateTopupCredits } from './actions'
 
 function money(cents: number, currency: string) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(
@@ -112,6 +112,77 @@ function ProductCard({
         </p>
       </div>
 
+      <div className="mt-4">
+        <label
+          className="block text-xs uppercase tracking-wide text-gray-400"
+          htmlFor={`credits-${product.id}`}
+        >
+          Credits per cycle <span className="lowercase tracking-normal">(optional)</span>
+        </label>
+        <input
+          id={`credits-${product.id}`}
+          type="number"
+          min={0}
+          name="credits_per_cycle"
+          defaultValue={meta.credits_per_cycle ?? ''}
+          placeholder="e.g. 10"
+          className="mt-1 w-32 border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          Agency credits granted on signup and every successful renewal. Leave blank if this plan
+          doesn&apos;t grant credits.
+        </p>
+      </div>
+
+      <button className="mt-4 bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+        Save
+      </button>
+    </form>
+  )
+}
+
+function TopupCard({ product, prices }: { product: Stripe.Product; prices: Stripe.Price[] }) {
+  const meta = product.metadata ?? {}
+  const priceLabel = prices
+    .map((p) => money(p.unit_amount ?? 0, (p.currency ?? 'usd').toUpperCase()))
+    .join(' · ')
+
+  return (
+    <form action={updateTopupCredits} className="bg-white p-5 ring-1 ring-[#ece7d8]">
+      <input type="hidden" name="product_id" value={product.id} />
+
+      <p className="font-semibold text-gray-900">{product.name}</p>
+      <p className="text-sm text-gray-500">{priceLabel}</p>
+      <a
+        href={stripeProductUrl(product.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-1 inline-block font-mono text-xs text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
+      >
+        {product.id}
+      </a>
+
+      <div className="mt-4">
+        <label
+          className="block text-xs uppercase tracking-wide text-gray-400"
+          htmlFor={`topup-${product.id}`}
+        >
+          Credits granted
+        </label>
+        <input
+          id={`topup-${product.id}`}
+          type="number"
+          min={0}
+          name="credit_amount"
+          defaultValue={meta.credit_amount ?? ''}
+          placeholder="e.g. 5"
+          className="mt-1 w-32 border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          Blank or 0 hides this from the credit top-up list.
+        </p>
+      </div>
+
       <button className="mt-4 bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
         Save
       </button>
@@ -157,6 +228,32 @@ export default async function ProductsPage() {
     (a.product.name || '').localeCompare(b.product.name || '')
   )
 
+  // One-time (non-recurring) prices -- credit top-ups live here, not in the
+  // recurring plan list above.
+  const oneTimePrices: Stripe.Price[] = []
+  let onceP = await stripe.prices.list({ active: true, type: 'one_time', expand: ['data.product'], limit: 100 })
+  oneTimePrices.push(...onceP.data)
+  while (onceP.has_more) {
+    onceP = await stripe.prices.list({
+      active: true,
+      type: 'one_time',
+      expand: ['data.product'],
+      limit: 100,
+      starting_after: oneTimePrices[oneTimePrices.length - 1].id,
+    })
+    oneTimePrices.push(...onceP.data)
+  }
+  const byTopupProduct = new Map<string, ProductRow>()
+  for (const p of oneTimePrices) {
+    const product = p.product as Stripe.Product
+    if (!product || (product as unknown as { deleted?: boolean }).deleted) continue
+    if (!byTopupProduct.has(product.id)) byTopupProduct.set(product.id, { product, prices: [] })
+    byTopupProduct.get(product.id)!.prices.push(p)
+  }
+  const topupProducts = [...byTopupProduct.values()].sort(
+    (a, b) => (a.prices[0]?.unit_amount ?? 0) - (b.prices[0]?.unit_amount ?? 0)
+  )
+
   // Active = shown to at least someone (all agencies, or a restricted list).
   // Inactive = neither billing_visible nor billing_agency set, so it's
   // hidden from every agency's plan picker.
@@ -200,6 +297,23 @@ export default async function ProductsPage() {
             <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
               {inactiveProducts.map(({ product, prices }) => (
                 <ProductCard key={product.id} product={product} prices={prices} agencyNames={agencyNames} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {topupProducts.length > 0 && (
+          <>
+            <p className="mt-8 text-xs font-mono uppercase tracking-wide text-gray-400">
+              Credit Top-Ups (one-time)
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Shown to any agency with an active credit-granting subscription, regardless of the
+              visibility settings above.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {topupProducts.map(({ product, prices }) => (
+                <TopupCard key={product.id} product={product} prices={prices} />
               ))}
             </div>
           </>
