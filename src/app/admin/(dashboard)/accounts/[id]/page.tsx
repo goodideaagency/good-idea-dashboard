@@ -126,6 +126,7 @@ export default async function AdminAccountDetailPage({
             accountId={account.id}
             services={services}
             action={updateSubscriptionStateAdmin}
+            showSubscriptionId
           />
         </div>
       </div>

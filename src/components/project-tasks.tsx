@@ -97,14 +97,18 @@ export function ProjectTasks({
 
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
               {task.dueDate && <span>Due {fmtDate(task.dueDate)}</span>}
-              <a
-                href={task.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-gray-800"
-              >
-                View in ClickUp
-              </a>
+              {/* Admin-only -- agency view never shows the underlying ClickUp
+                  link (commentAction is only ever passed on the agency side). */}
+              {!commentAction && (
+                <a
+                  href={task.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-gray-800"
+                >
+                  View in ClickUp
+                </a>
+              )}
             </div>
 
             {task.attachments.length > 0 && (

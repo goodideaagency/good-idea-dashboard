@@ -15,14 +15,18 @@ export type AccountService = {
 // Renders every service (subscription) on an account as its own card + its own
 // transaction-history table. Each card has independent cancel / restart. Shared
 // by the agency and admin account-detail pages (they pass their own action).
+// showSubscriptionId is admin-only -- the raw Stripe subscription id is an
+// internal implementation detail an agency user should never see.
 export function AccountServices({
   accountId,
   services,
   action,
+  showSubscriptionId = false,
 }: {
   accountId: string
   services: AccountService[]
   action: (formData: FormData) => void | Promise<void>
+  showSubscriptionId?: boolean
 }) {
   if (services.length === 0) {
     return (
@@ -55,7 +59,7 @@ export function AccountServices({
                 <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
                 <StatusBadge status={sub.status ?? 'none'} />
               </div>
-              {sub.stripe_subscription_id && (
+              {showSubscriptionId && sub.stripe_subscription_id && (
                 <p className="mt-2 font-mono text-xs text-gray-400">{sub.stripe_subscription_id}</p>
               )}
               {sub.stripe_subscription_id && (
