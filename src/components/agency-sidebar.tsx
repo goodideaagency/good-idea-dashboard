@@ -17,11 +17,15 @@ export function AgencySidebar({
   userEmail,
   signout,
   unreadCount,
+  creditBalance,
+  showCredits,
 }: {
   agencyName: string
   userEmail: string
   signout: () => void | Promise<void>
   unreadCount: number
+  creditBalance?: number
+  showCredits?: boolean
 }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -53,6 +57,17 @@ export function AgencySidebar({
       <Link href="/dashboard/projects" className={navCls(pathname.startsWith('/dashboard/projects'))}>
         Projects
       </Link>
+      {showCredits && (
+        <Link
+          href="/dashboard/credits"
+          className={`flex items-center justify-between ${navCls(pathname.startsWith('/dashboard/credits'))}`}
+        >
+          Credits
+          <span className="bg-[#f7cf4a] px-1.5 py-0.5 text-[10px] font-semibold text-black">
+            {creditBalance ?? 0}
+          </span>
+        </Link>
+      )}
       <Link href="/dashboard/clients" className={navCls(pathname.startsWith('/dashboard/clients'))}>
         My Clients
       </Link>

@@ -1,6 +1,25 @@
 import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// Every agency has exactly ONE Stripe customer, created lazily on first
+// purchase (subscription or credit top-up) and reused after that.
+export async function ensureAgencyStripeCustomer(
+  admin: SupabaseClient,
+  agency: { id: string; name: string; stripe_customer_id: string | null },
+  email: string | undefined
+): Promise<string> {
+  if (agency.stripe_customer_id) return agency.stripe_customer_id
+
+  const customer = await stripe.customers.create({
+    name: agency.name,
+    email,
+    metadata: { agency_id: agency.id, agency_name: agency.name },
+  })
+  await admin.from('agencies').update({ stripe_customer_id: customer.id }).eq('id', agency.id)
+  return customer.id
+}
 
 // Writes/updates our record of a Stripe subscription. Used both by the
 // checkout return handler (initial purchase) and the webhook (ongoing changes

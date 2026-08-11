@@ -21,6 +21,14 @@ export type ServiceDef = {
   sections?: FieldSection[]
 }
 
+// The Custom Field (shared across every List in the Internal Ops > One-Time
+// Projects folder -- created once, ClickUp reuses it by name for every List
+// it's added to) that holds a task's current total credit cost. The team
+// edits this directly in ClickUp to add/lower a task's cost after the fact;
+// the ClickUp webhook reconciles the difference against credit_charges (see
+// reconcileTaskCost in lib/credits.ts).
+export const CREDIT_COST_FIELD_ID = 'd3a43790-4712-4aba-bd9c-40bcfeb3952f'
+
 // Optional grouping for a long intake form -- purely a rendering concern
 // (see ServiceFormFields), so the fields inside still must also appear in
 // fieldIds above. Kept as a separate list rather than deriving fieldIds from
@@ -28,31 +36,71 @@ export type ServiceDef = {
 // ungrouped.
 export type FieldSection = { title: string; fieldIds: string[] }
 
-export const ONE_TIME_SERVICES: ServiceDef[] = [
+// A one-time service also carries its base credit cost -- deducted from the
+// agency's credit bank when the request is submitted (see
+// dashboard/request/[key]/actions.ts). The team can raise or lower a given
+// task's actual cost later via the Credit Cost field in ClickUp; only the
+// difference from this base gets charged/refunded (reconcileTaskCost).
+export type OneTimeServiceDef = ServiceDef & { baseCreditCost: number }
+
+export const ONE_TIME_SERVICES: OneTimeServiceDef[] = [
   {
-    key: 'account-audit',
-    label: 'Account Audit',
-    internalListId: '901418378720',
-    fieldIds: [
-      'e9cc7cf7-f5d1-494e-b8c6-ab0d78f03a9b', // Website URL
-      '1140983b-d118-4c24-9151-5dfd121a7198', // What should we focus on?
-      'c32e352d-893f-44cc-b1fe-31e0c76ec652', // Rush this audit?
-    ],
+    key: 'consulting-30',
+    label: 'Consulting (30 min)',
+    internalListId: '901419012372',
+    baseCreditCost: 1,
+    fieldIds: [],
   },
   {
-    key: 'ppc-audit',
-    label: 'PPC Audit',
+    key: 'ad-idea',
+    label: 'Ad Idea',
+    internalListId: '901419012373',
+    baseCreditCost: 1,
+    fieldIds: [],
+  },
+  {
+    key: 'ad-design',
+    label: 'Ad Design',
+    internalListId: '901418378719',
+    baseCreditCost: 2,
+    fieldIds: [],
+  },
+  {
+    key: 'ppc-account-audit',
+    label: 'PPC Account Audit',
     internalListId: '901418382325',
     templateId: 't-86bb24h91',
+    baseCreditCost: 2,
     fieldIds: [
       '7128daaa-752c-448b-8966-eb3ded4f76f6', // Ad platform(s)
       '9329b5d4-bbd2-4f22-8034-33691ad57932', // Link to ad account
       '1bf6a853-4f69-4b5d-ac48-9befb405f00d', // What prompted this audit?
     ],
   },
+  {
+    key: 'basic-tracking-setup',
+    label: 'Basic Tracking Setup',
+    internalListId: '901419012375',
+    baseCreditCost: 4,
+    fieldIds: [],
+  },
+  {
+    key: 'advanced-tracking-setup',
+    label: 'Advanced Tracking Setup',
+    internalListId: '901419012376',
+    baseCreditCost: 6,
+    fieldIds: [],
+  },
+  {
+    key: 'ppc-account-setup',
+    label: 'PPC Account Set Up',
+    internalListId: '901419012377',
+    baseCreditCost: 6,
+    fieldIds: [],
+  },
 ]
 
-export function getServiceByKey(key: string): ServiceDef | undefined {
+export function getServiceByKey(key: string): OneTimeServiceDef | undefined {
   return ONE_TIME_SERVICES.find((s) => s.key === key)
 }
 

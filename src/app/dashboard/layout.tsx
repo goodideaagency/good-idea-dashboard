@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AgencySidebar } from '@/components/agency-sidebar'
+import { agencyIsCreditEligible, getAgencyCreditBalance } from '@/lib/credits'
 import { signout } from '../login/actions'
 
 export default async function DashboardLayout({
@@ -15,10 +16,14 @@ export default async function DashboardLayout({
   if (!user) redirect('/login')
 
   const [{ data: membership }, { count: unreadCount }] = await Promise.all([
-    supabase.from('agency_users').select('agencies(name)').eq('user_id', user.id).maybeSingle(),
+    supabase.from('agency_users').select('agency_id, agencies(name)').eq('user_id', user.id).maybeSingle(),
     supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
   ])
   const agencyName = (membership?.agencies as { name?: string } | null)?.name ?? 'your agency'
+  const agencyId = membership?.agency_id as string | undefined
+  const [creditBalance, creditEligible] = agencyId
+    ? await Promise.all([getAgencyCreditBalance(agencyId), agencyIsCreditEligible(agencyId)])
+    : [0, false]
 
   return (
     <div className="min-h-screen lg:flex">
@@ -27,6 +32,8 @@ export default async function DashboardLayout({
         userEmail={user.email ?? ''}
         signout={signout}
         unreadCount={unreadCount ?? 0}
+        creditBalance={creditBalance}
+        showCredits={creditEligible || creditBalance > 0}
       />
       <main className="min-w-0 flex-1 bg-white">
         <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-10">{children}</div>

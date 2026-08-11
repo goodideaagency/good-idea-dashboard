@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 import { createList } from '@/lib/clickup'
+import { ensureAgencyStripeCustomer } from '@/lib/subscriptions'
 
 // Adds a service (subscription) for the logged-in agency and sends them to
 // Stripe Checkout to pay for it. The service is attached either to an EXISTING
@@ -44,19 +45,7 @@ export async function addServiceAndCheckout(formData: FormData) {
     .single()
   if (!agency) redirect('/dashboard')
 
-  let customerId = agency.stripe_customer_id as string | null
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      name: agency.name,
-      email: user.email ?? undefined,
-      metadata: { agency_id: agency.id, agency_name: agency.name },
-    })
-    customerId = customer.id
-    await admin
-      .from('agencies')
-      .update({ stripe_customer_id: customerId })
-      .eq('id', agency.id)
-  }
+  const customerId = await ensureAgencyStripeCustomer(admin, agency, user.email ?? undefined)
 
   // 2. Resolve the target account: an existing one (ownership enforced by RLS)
   //    or a brand-new one created from the submitted name/website.

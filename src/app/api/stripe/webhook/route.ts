@@ -57,6 +57,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session
+      if (session.mode === 'payment' && session.metadata?.credit_topup === 'true') {
+        const agencyId = session.metadata.agency_id
+        const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+          expand: ['data.price.product'],
+        })
+        const product = lineItems.data[0]?.price?.product as Stripe.Product | undefined
+        const credits = Number(product?.metadata?.credit_amount ?? 0)
+
+        if (agencyId && credits > 0) {
+          await grantAgencyCredits(agencyId, credits, 'topup', {
+            stripeEventId: event.id,
+            note: `${product?.name ?? 'Credit top-up'} purchase`,
+          })
+        }
+      }
+    }
+
     if (event.type === 'invoice.paid') {
       const invoice = event.data.object as Stripe.Invoice
       const source = GRANT_SOURCE[invoice.billing_reason ?? '']

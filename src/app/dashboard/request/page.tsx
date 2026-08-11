@@ -31,7 +31,10 @@ export default async function RequestServicePage() {
             key={s.key}
             className="flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
           >
-            <p className="text-lg font-semibold text-gray-900">{s.label}</p>
+            <div>
+              <p className="text-lg font-semibold text-gray-900">{s.label}</p>
+              <p className="mt-1 text-sm text-gray-500">{s.baseCreditCost} credits</p>
+            </div>
             <Link
               href={`/dashboard/request/${s.key}`}
               className="mt-8 flex items-center justify-center gap-2 bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"

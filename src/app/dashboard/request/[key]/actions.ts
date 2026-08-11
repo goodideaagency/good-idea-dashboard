@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getListFields,
   createTask,
@@ -9,9 +10,11 @@ import {
   setTaskCustomField,
   updateTaskMarkdownDescription,
   linkTasks,
+  uploadTaskAttachment,
 } from '@/lib/clickup'
-import { getServiceByKey } from '@/lib/service-catalog'
+import { getServiceByKey, CREDIT_COST_FIELD_ID } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
+import { spendAgencyCredits } from '@/lib/credits'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFieldValue(type: string, raw: FormDataEntryValue | null): any {
@@ -37,6 +40,14 @@ export async function submitServiceRequest(formData: FormData) {
   const service = getServiceByKey(serviceKey)
   if (!service || !accountId) redirect('/dashboard/request')
 
+  const { data: membership } = await supabase
+    .from('agency_users')
+    .select('agency_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!membership) redirect('/dashboard/request')
+  const agencyId = membership.agency_id as string
+
   // RLS ensures this only returns the account if it belongs to the caller's agency.
   const { data: account } = await supabase
     .from('accounts')
@@ -50,6 +61,20 @@ export async function submitServiceRequest(formData: FormData) {
     )
   }
 
+  // Claims the credits up front, atomically -- fails clean with no ClickUp
+  // task created if the agency doesn't actually have enough (e.g. a second
+  // tab racing this one).
+  const spent = await spendAgencyCredits(agencyId, service.baseCreditCost, 'service_request', {
+    accountId,
+    note: service.label,
+  })
+  if (!spent) {
+    redirect(
+      `/dashboard/request/${serviceKey}?error=` +
+        encodeURIComponent("You don't have enough credits for this service.")
+    )
+  }
+
   // Re-fetch the field schema server-side -- never trust field types/ids from
   // the client. Restricted to this service's allow-listed fields (see
   // service-catalog.ts) since ClickUp doesn't cleanly scope fields to one List.
@@ -58,11 +83,15 @@ export async function submitServiceRequest(formData: FormData) {
   const customFields = fields
     .map((f) => ({ id: f.id, value: parseFieldValue(f.type, formData.get(`field_${f.id}`)) }))
     .filter((f) => f.value !== undefined)
+  customFields.push({ id: CREDIT_COST_FIELD_ID, value: service.baseCreditCost })
 
-  // A readable, grouped writeup of the answers -- this becomes the task's
-  // description so the team sees a clean summary up top instead of having to
-  // piece it together from ClickUp's cramped, truncated Custom Fields sidebar.
-  const summary = formatIntakeSummary(fields, service.sections, customFields)
+  // Services with no dedicated intake questions (see service-catalog.ts)
+  // fall back to a free-text description instead of a blank summary.
+  const genericDescription = String(formData.get('description') || '').trim()
+  const summary =
+    fields.length > 0
+      ? formatIntakeSummary(fields, service.sections, customFields)
+      : genericDescription || '_No description provided._'
 
   const internalTaskName = `${service.label} — ${account.name}`
   const internalTask = service.templateId
@@ -81,6 +110,11 @@ export async function submitServiceRequest(formData: FormData) {
     await updateTaskMarkdownDescription(internalTask.id, summary)
   }
 
+  const attachment = formData.get('attachment')
+  if (internalTask && attachment instanceof File && attachment.size > 0) {
+    await uploadTaskAttachment(internalTask.id, attachment, attachment.name)
+  }
+
   const clientTask = await createTask(account.clickup_list_id, service.label, {
     status: 'scoping',
   })
@@ -94,6 +128,19 @@ export async function submitServiceRequest(formData: FormData) {
 
   if (internalTask) {
     await linkTasks(clientTask.id, internalTask.id)
+
+    // So the Internal Ops ClickUp webhook can trace a later "Credit Cost"
+    // field edit on this task back to the agency/account to charge or
+    // refund (see reconcileTaskCost).
+    const admin = createAdminClient()
+    await admin.from('service_requests').insert({
+      agency_id: agencyId,
+      account_id: accountId,
+      clickup_task_id: internalTask.id,
+      clickup_client_task_id: clientTask.id,
+      service_key: service.key,
+      base_credit_cost: service.baseCreditCost,
+    })
   }
 
   redirect(`/dashboard/projects/${clientTask.id}`)

@@ -3,8 +3,11 @@ import crypto from 'crypto'
 // ClickUp signs each webhook POST body with the webhook's own secret (HMAC
 // SHA256, hex), sent as the X-Signature header. Verifying this stops anyone
 // who finds the endpoint URL from injecting fake task changes.
-export function verifyClickUpSignature(rawBody: string, signature: string | null): boolean {
-  const secret = process.env.CLICKUP_WEBHOOK_SECRET
+export function verifyClickUpSignature(
+  rawBody: string,
+  signature: string | null,
+  secret = process.env.CLICKUP_WEBHOOK_SECRET
+): boolean {
   if (!secret || !signature) return false
   const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
   try {
