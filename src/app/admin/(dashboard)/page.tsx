@@ -4,11 +4,16 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
-import { setAgencyArchived, syncSubscriptionAmounts } from './actions'
+import { backfillSubscriptionMetadata, setAgencyArchived, syncSubscriptionAmounts } from './actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ backfilled?: string; backfillFailed?: string }>
+}) {
+  const { backfilled, backfillFailed } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -84,8 +89,24 @@ export default async function AdminPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold text-gray-900">Agencies</h1>
-      <p className="mt-1 text-sm text-gray-500">Every agency, account, and subscription</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold text-gray-900">Agencies</h1>
+          <p className="mt-1 text-sm text-gray-500">Every agency, account, and subscription</p>
+        </div>
+        <form action={backfillSubscriptionMetadata}>
+          <button className="border border-[#e7e2d3] px-3 py-1.5 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
+            Backfill Stripe metadata
+          </button>
+        </form>
+      </div>
+
+      {(backfilled || backfillFailed) && (
+        <p className="mt-3 bg-green-50 px-3 py-2 text-sm text-green-700">
+          Backfilled {backfilled ?? 0} subscription{backfilled === '1' ? '' : 's'}
+          {backfillFailed && Number(backfillFailed) > 0 ? ` — ${backfillFailed} skipped (missing data)` : ''}.
+        </p>
+      )}
 
       {/* Summary tiles */}
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">

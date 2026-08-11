@@ -69,3 +69,62 @@ export async function syncSubscriptionAmounts() {
 
   revalidatePath('/admin')
 }
+
+// One-time backfill: writes agency/account id + name metadata onto every
+// existing Stripe subscription (and its customer), matching what new
+// checkouts already set (see dashboard/actions.ts). Only touches the
+// `metadata` field -- Stripe explicitly does not treat that as a billing
+// change, so this never affects proration, invoicing, or subscription
+// status. Safe to re-run any time (e.g. after renaming an agency/account).
+export async function backfillSubscriptionMetadata() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!(await isAdmin(user?.email))) redirect('/dashboard')
+
+  const admin = createAdminClient()
+  const { data: subs } = await admin
+    .from('subscriptions')
+    .select('stripe_subscription_id, account_id, agency_id, accounts(name), agencies(name)')
+    .not('stripe_subscription_id', 'is', null)
+
+  const customersDone = new Set<string>()
+  let updated = 0
+  let failed = 0
+
+  for (const s of subs ?? []) {
+    const subId = s.stripe_subscription_id as string
+    const accountName = (s.accounts as { name?: string } | null)?.name
+    const agencyName = (s.agencies as { name?: string } | null)?.name
+    if (!accountName || !agencyName || !s.account_id || !s.agency_id) {
+      failed++
+      continue
+    }
+    const metadata = {
+      account_id: s.account_id,
+      account_name: accountName,
+      agency_id: s.agency_id,
+      agency_name: agencyName,
+    }
+    try {
+      const subscription = await stripe.subscriptions.update(subId, { metadata })
+      updated++
+
+      // Also tag the customer once per unique customer id.
+      const customerId =
+        typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id
+      if (!customersDone.has(customerId)) {
+        customersDone.add(customerId)
+        await stripe.customers.update(customerId, {
+          metadata: { agency_id: s.agency_id, agency_name: agencyName },
+        })
+      }
+    } catch {
+      failed++
+    }
+  }
+
+  revalidatePath('/admin')
+  redirect(`/admin?backfilled=${updated}&backfillFailed=${failed}`)
+}
