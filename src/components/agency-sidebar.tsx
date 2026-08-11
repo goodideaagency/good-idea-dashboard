@@ -48,11 +48,7 @@ export function AgencySidebar({
         )}`}
       >
         Notifications
-        {unreadCount > 0 && (
-          <span className="flex h-4 min-w-4 items-center justify-center bg-red-600 px-1 text-[10px] font-semibold text-white">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
+        {unreadCount > 0 && <span className="text-sm font-bold">{unreadCount}</span>}
       </Link>
       <Link href="/dashboard/projects" className={navCls(pathname.startsWith('/dashboard/projects'))}>
         Projects
@@ -139,9 +135,7 @@ export function AgencySidebar({
             }`}
           >
             Agency Credits
-            <span className="bg-[#f7cf4a] px-1.5 py-0.5 text-[10px] font-semibold text-black">
-              {creditBalance ?? 0}
-            </span>
+            <span className="text-sm font-bold">{creditBalance ?? 0}</span>
           </Link>
         )}
 
