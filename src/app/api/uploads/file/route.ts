@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { uploadTaskAttachment } from '@/lib/clickup'
+import { postAttachmentComment, uploadTaskAttachment } from '@/lib/clickup'
 
 // Uploads a brand file/document straight onto the account's "Client Profile"
 // task in ClickUp -- see clickup.ts: there's no delete-attachment endpoint,
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
 
   const attachment = await uploadTaskAttachment(account.clickup_profile_task_id, file, file.name)
   if (!attachment) return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+
+  const authorName = (user.user_metadata as { full_name?: string })?.full_name
+  await postAttachmentComment(account.clickup_profile_task_id, authorName || user.email || 'Client', attachment.id)
 
   return NextResponse.json({ file: attachment })
 }

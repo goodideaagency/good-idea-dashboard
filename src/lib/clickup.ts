@@ -377,3 +377,32 @@ export async function uploadTaskAttachment(
     return null
   }
 }
+
+// Posts a comment embedding an already-uploaded attachment, with the
+// uploader's name in bold -- same "who really did this" problem as
+// postTaskComment (every upload goes through the shared bot account), but
+// for files instead of text. The attachment segment renders as a real
+// inline file/thumbnail in ClickUp, not just a link.
+export async function postAttachmentComment(
+  taskId: string,
+  authorLabel: string,
+  attachmentId: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}/comment`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        comment: [
+          { text: authorLabel, attributes: { bold: true } },
+          { text: '\n' },
+          { text: 'uploaded a file' },
+          { type: 'attachment', attachment: { id: attachmentId } },
+        ],
+      }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
