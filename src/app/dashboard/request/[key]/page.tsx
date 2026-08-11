@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getListFields } from '@/lib/clickup'
 import { getServiceByKey } from '@/lib/service-catalog'
+import { ServiceFormFields } from '@/components/service-form-fields'
 import { submitServiceRequest } from './actions'
 
 const inputCls =
@@ -88,38 +89,7 @@ export default async function RequestServiceFormPage({
               </p>
             </div>
 
-            {fields.map((f) => (
-              <div key={f.id}>
-                <label className="block text-sm font-medium text-gray-700" htmlFor={`field-${f.id}`}>
-                  {f.name}
-                </label>
-                {f.type === 'checkbox' ? (
-                  <input
-                    id={`field-${f.id}`}
-                    name={`field_${f.id}`}
-                    type="checkbox"
-                    className="mt-1 h-4 w-4"
-                  />
-                ) : f.type === 'drop_down' ? (
-                  <select id={`field-${f.id}`} name={`field_${f.id}`} className={inputCls}>
-                    <option value="">Select...</option>
-                    {f.options.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : f.type === 'number' ? (
-                  <input id={`field-${f.id}`} name={`field_${f.id}`} type="number" className={inputCls} />
-                ) : f.type === 'date' ? (
-                  <input id={`field-${f.id}`} name={`field_${f.id}`} type="date" className={inputCls} />
-                ) : f.type === 'url' ? (
-                  <input id={`field-${f.id}`} name={`field_${f.id}`} type="url" className={inputCls} />
-                ) : (
-                  <textarea id={`field-${f.id}`} name={`field_${f.id}`} rows={3} className={inputCls} />
-                )}
-              </div>
-            ))}
+            <ServiceFormFields fields={fields} sections={service.sections} />
 
             <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
               Start This Service
