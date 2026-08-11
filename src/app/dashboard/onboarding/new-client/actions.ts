@@ -45,6 +45,26 @@ export async function completeNewClientSetup(formData: FormData) {
     .maybeSingle()
   if (!agency) redirect('/dashboard')
 
+  // Idempotency: find the signup subscription for this agency/price FIRST,
+  // before creating anything. If it already has an account attached (a
+  // duplicate submission -- double-click, a slow request retried, browser
+  // back-button resubmit), reuse that account instead of creating a second
+  // one. Without this, a resubmit created an orphan account with no ClickUp
+  // List (its List creation call had nothing left to link to) and no way to
+  // find the already-claimed subscription, dead-ending the whole flow.
+  const { data: sub } = await admin
+    .from('subscriptions')
+    .select('id, account_id, stripe_subscription_id')
+    .eq('agency_id', agency.id)
+    .eq('stripe_price_id', priceId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (sub?.account_id) {
+    redirect(`/dashboard/onboarding/${priceId}?account_id=${sub.account_id}`)
+  }
+
   const { data: account } = await admin
     .from('accounts')
     .insert({ agency_id: agency.id, name, website: website || null })
@@ -61,18 +81,6 @@ export async function completeNewClientSetup(formData: FormData) {
     const list = await createList(agency.clickup_folder_id, account!.name)
     if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account!.id)
   }
-
-  // The signup subscription was created with no account yet -- find it
-  // (agency + price, still unattached) and link it now.
-  const { data: sub } = await admin
-    .from('subscriptions')
-    .select('id, stripe_subscription_id')
-    .eq('agency_id', agency.id)
-    .eq('stripe_price_id', priceId)
-    .is('account_id', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
   if (sub) {
     await admin.from('subscriptions').update({ account_id: account!.id }).eq('id', sub.id)
