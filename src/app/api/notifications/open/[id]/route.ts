@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
 // Marks a notification read, then redirects to its target -- lets a plain
@@ -19,6 +20,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .maybeSingle()
 
   await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id)
+  // The sidebar unread count lives in the shared dashboard layout -- mark it
+  // stale now instead of waiting out its normal cache window.
+  revalidatePath('/dashboard', 'layout')
 
   return NextResponse.redirect(new URL(notification?.url ?? '/dashboard', req.url))
 }
