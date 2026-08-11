@@ -21,7 +21,7 @@ export default async function DashboardLayout({
   const agencyName = (membership?.agencies as { name?: string } | null)?.name ?? 'your agency'
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen lg:flex">
       <AgencySidebar
         agencyName={agencyName}
         userEmail={user.email ?? ''}
