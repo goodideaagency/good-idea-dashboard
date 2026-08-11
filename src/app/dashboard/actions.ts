@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
+import { createList } from '@/lib/clickup'
 
 // Adds a service (subscription) for the logged-in agency and sends them to
 // Stripe Checkout to pay for it. The service is attached either to an EXISTING
@@ -38,7 +39,7 @@ export async function addServiceAndCheckout(formData: FormData) {
   // 1. Ensure this agency has exactly ONE Stripe customer.
   const { data: agency } = await admin
     .from('agencies')
-    .select('id, name, stripe_customer_id')
+    .select('id, name, stripe_customer_id, clickup_folder_id')
     .eq('id', membership.agency_id)
     .single()
   if (!agency) redirect('/dashboard')
@@ -80,6 +81,14 @@ export async function addServiceAndCheckout(formData: FormData) {
     if (!account) redirect('/dashboard')
     accountId = account.id
     returnTo = `/dashboard/accounts/${accountId}`
+
+    // Same auto-provisioning a Client Profile gets -- without this, a
+    // managed service bought for a brand-new client would have nowhere in
+    // ClickUp for its post-payment intake task to land.
+    if (agency.clickup_folder_id) {
+      const list = await createList(agency.clickup_folder_id, name)
+      if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
+    }
   }
 
   // 3. Start a Checkout Session tied to that customer + account.

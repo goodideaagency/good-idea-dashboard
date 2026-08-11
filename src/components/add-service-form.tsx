@@ -67,6 +67,12 @@ export function AddServiceForm({
   const showExisting = !fixedAccountId && accounts.length > 0 && mode === 'existing'
   const showNew = !fixedAccountId && !showExisting
 
+  // Coming from /dashboard/request, a specific plan was already chosen --
+  // show it as a locked confirmation instead of making the client pick
+  // again from a list. Falls back to the full picker if that plan id
+  // doesn't actually match one of the plans passed in.
+  const lockedPlan = defaultPlanId ? plans.find((p) => p.id === defaultPlanId) : undefined
+
   return (
     <form action={action} className="space-y-4">
       {fixedAccountId && <input type="hidden" name="account_id" value={fixedAccountId} />}
@@ -105,29 +111,33 @@ export function AddServiceForm({
 
       {showNew && <NewClientFields />}
 
-      <div>
-        <p className="text-sm font-medium text-gray-700">Choose a plan</p>
-        <div className="mt-2 space-y-2">
-          {plans.map((plan, i) => (
-            <label
-              key={plan.id}
-              className="flex cursor-pointer items-center gap-3 border border-[#e7e2d3] px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
-            >
-              <input
-                type="radio"
-                name="priceId"
-                value={plan.id}
-                defaultChecked={defaultPlanId ? plan.id === defaultPlanId : i === 0}
-                required
-              />
-              <span className="text-gray-900">{plan.label}</span>
-            </label>
-          ))}
+      {lockedPlan ? (
+        <div>
+          <p className="text-sm font-medium text-gray-700">Service</p>
+          <input type="hidden" name="priceId" value={lockedPlan.id} />
+          <div className="mt-2 border border-[#e7e2d3] bg-[#f6f1e4] px-3 py-2 text-sm text-gray-900">
+            {lockedPlan.label}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div>
+          <p className="text-sm font-medium text-gray-700">Choose a plan</p>
+          <div className="mt-2 space-y-2">
+            {plans.map((plan, i) => (
+              <label
+                key={plan.id}
+                className="flex cursor-pointer items-center gap-3 border border-[#e7e2d3] px-3 py-2 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50"
+              >
+                <input type="radio" name="priceId" value={plan.id} defaultChecked={i === 0} required />
+                <span className="text-gray-900">{plan.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
-        Add &amp; continue to payment
+        {lockedPlan ? 'Continue to payment' : 'Add & continue to payment'}
       </button>
     </form>
   )

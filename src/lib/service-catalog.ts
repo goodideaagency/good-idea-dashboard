@@ -47,3 +47,37 @@ export const ONE_TIME_SERVICES: ServiceDef[] = [
 export function getServiceByKey(key: string): ServiceDef | undefined {
   return ONE_TIME_SERVICES.find((s) => s.key === key)
 }
+
+// Recurring/managed services -- same shape and same "why fieldIds is an
+// allow-list" reasoning as ONE_TIME_SERVICES above, but keyed by Stripe
+// Price id (that's the only stable identifier we have coming out of
+// Checkout) instead of a hand-picked slug. clientTaskName is what shows up
+// on the client's own List once intake is submitted, with status "ongoing"
+// -- matching the existing "Ongoing Services" card convention.
+export type ManagedServiceDef = ServiceDef & {
+  priceId: string
+  clientTaskName: string
+}
+
+export const MANAGED_SERVICES: ManagedServiceDef[] = [
+  {
+    priceId: 'price_1TuxIbFMJ3Zn4Zd2x38gJoxs',
+    key: 'wl-ppc-growth',
+    label: 'White Label PPC — Growth',
+    clientTaskName: 'White Label PPC — Monthly Management',
+    internalListId: '901418378713', // Recurring Services > PPC Management
+    fieldIds: [],
+  },
+  {
+    priceId: 'price_1TuxIbFMJ3Zn4Zd2Dgih5ndu',
+    key: 'wl-ppc-starter',
+    label: 'White Label PPC — Starter',
+    clientTaskName: 'White Label PPC — Monthly Management',
+    internalListId: '901418378713', // Recurring Services > PPC Management
+    fieldIds: [],
+  },
+]
+
+export function getManagedServiceByPriceId(priceId: string): ManagedServiceDef | undefined {
+  return MANAGED_SERVICES.find((s) => s.priceId === priceId)
+}
