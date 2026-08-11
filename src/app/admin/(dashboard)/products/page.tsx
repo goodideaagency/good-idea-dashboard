@@ -21,6 +21,104 @@ function stripeProductUrl(productId: string) {
 
 type ProductRow = { product: Stripe.Product; prices: Stripe.Price[] }
 
+function ProductCard({
+  product,
+  prices,
+  agencyNames,
+}: {
+  product: Stripe.Product
+  prices: Stripe.Price[]
+  agencyNames: string[]
+}) {
+  const meta = product.metadata ?? {}
+  const visibleAll = meta.billing_visible === 'true'
+  const restricted = (meta.billing_agency ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const restrictedLower = restricted.map((s) => s.toLowerCase())
+  const state = visibleAll
+    ? { text: 'Visible to all', cls: 'bg-green-100 text-green-800' }
+    : restricted.length
+      ? { text: `Only: ${restricted.join(', ')}`, cls: 'bg-amber-100 text-amber-800' }
+      : { text: 'Hidden', cls: 'bg-gray-100 text-gray-600' }
+  const priceLabel = prices
+    .map((p) => `${money(p.unit_amount ?? 0, (p.currency ?? 'usd').toUpperCase())}/${p.recurring?.interval ?? 'mo'}`)
+    .join(' · ')
+
+  return (
+    <form action={updateProductVisibility} className="bg-white p-5 ring-1 ring-[#ece7d8]">
+      <input type="hidden" name="product_id" value={product.id} />
+
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold text-gray-900">{product.name}</p>
+          <p className="text-sm text-gray-500">{priceLabel}</p>
+          <a
+            href={stripeProductUrl(product.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block font-mono text-xs text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
+          >
+            {product.id}
+          </a>
+        </div>
+        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${state.cls}`}>
+          {state.text}
+        </span>
+      </div>
+
+      <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-gray-900">
+        <input type="checkbox" name="visible" defaultChecked={visibleAll} />
+        Show to <strong>all</strong> agencies
+      </label>
+
+      {agencyNames.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs uppercase tracking-wide text-gray-400">Or only these agencies</p>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+            {agencyNames.map((name) => (
+              <label key={name} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="agency"
+                  value={name}
+                  defaultChecked={restrictedLower.includes(name.toLowerCase())}
+                />
+                {name}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <label
+          className="block text-xs uppercase tracking-wide text-gray-400"
+          htmlFor={`onboarding-${product.id}`}
+        >
+          Redirect after purchase <span className="lowercase tracking-normal">(optional)</span>
+        </label>
+        <input
+          id={`onboarding-${product.id}`}
+          type="url"
+          name="onboarding_url"
+          defaultValue={meta.onboarding_url ?? ''}
+          placeholder="https://itsgoodidea.com/onboarding"
+          className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          Where buyers land after paying for this plan. Leave blank to send them to their dashboard.
+        </p>
+      </div>
+
+      <button className="mt-4 bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+        Save
+      </button>
+    </form>
+  )
+}
+
 export default async function ProductsPage() {
   const supabase = await createClient()
   const {
@@ -59,6 +157,15 @@ export default async function ProductsPage() {
     (a.product.name || '').localeCompare(b.product.name || '')
   )
 
+  // Active = shown to at least someone (all agencies, or a restricted list).
+  // Inactive = neither billing_visible nor billing_agency set, so it's
+  // hidden from every agency's plan picker.
+  const activeProducts = products.filter(({ product }) => {
+    const meta = product.metadata ?? {}
+    return meta.billing_visible === 'true' || Boolean((meta.billing_agency ?? '').trim())
+  })
+  const inactiveProducts = products.filter((p) => !activeProducts.includes(p))
+
   return (
     <div>
       <h1 className="text-3xl font-semibold text-gray-900">Products</h1>
@@ -70,107 +177,33 @@ export default async function ProductsPage() {
           here. Turn everything off to hide it completely.
         </p>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {products.length === 0 && (
-            <div className="border border-dashed border-[#e7e2d3] bg-white p-8 text-center text-sm text-gray-500 lg:col-span-3">
-              No active recurring products found in Stripe.
+        {products.length === 0 && (
+          <div className="mt-5 border border-dashed border-[#e7e2d3] bg-white p-8 text-center text-sm text-gray-500">
+            No active recurring products found in Stripe.
+          </div>
+        )}
+
+        {activeProducts.length > 0 && (
+          <>
+            <p className="mt-8 text-xs font-mono uppercase tracking-wide text-gray-400">Active</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {activeProducts.map(({ product, prices }) => (
+                <ProductCard key={product.id} product={product} prices={prices} agencyNames={agencyNames} />
+              ))}
             </div>
-          )}
+          </>
+        )}
 
-          {products.map(({ product, prices }) => {
-            const meta = product.metadata ?? {}
-            const visibleAll = meta.billing_visible === 'true'
-            const restricted = (meta.billing_agency ?? '')
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean)
-            const restrictedLower = restricted.map((s) => s.toLowerCase())
-            const state = visibleAll
-              ? { text: 'Visible to all', cls: 'bg-green-100 text-green-800' }
-              : restricted.length
-                ? { text: `Only: ${restricted.join(', ')}`, cls: 'bg-amber-100 text-amber-800' }
-                : { text: 'Hidden', cls: 'bg-gray-100 text-gray-600' }
-            const priceLabel = prices
-              .map((p) => `${money(p.unit_amount ?? 0, (p.currency ?? 'usd').toUpperCase())}/${p.recurring?.interval ?? 'mo'}`)
-              .join(' · ')
-
-            return (
-              <form
-                key={product.id}
-                action={updateProductVisibility}
-                className="bg-white p-5 ring-1 ring-[#ece7d8]"
-              >
-                <input type="hidden" name="product_id" value={product.id} />
-
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-gray-900">{product.name}</p>
-                    <p className="text-sm text-gray-500">{priceLabel}</p>
-                    <a
-                      href={stripeProductUrl(product.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-1 inline-block font-mono text-xs text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
-                    >
-                      {product.id}
-                    </a>
-                  </div>
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${state.cls}`}>
-                    {state.text}
-                  </span>
-                </div>
-
-                <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-gray-900">
-                  <input type="checkbox" name="visible" defaultChecked={visibleAll} />
-                  Show to <strong>all</strong> agencies
-                </label>
-
-                {agencyNames.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-400">Or only these agencies</p>
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
-                      {agencyNames.map((name) => (
-                        <label key={name} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                          <input
-                            type="checkbox"
-                            name="agency"
-                            value={name}
-                            defaultChecked={restrictedLower.includes(name.toLowerCase())}
-                          />
-                          {name}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-4">
-                  <label
-                    className="block text-xs uppercase tracking-wide text-gray-400"
-                    htmlFor={`onboarding-${product.id}`}
-                  >
-                    Redirect after purchase <span className="lowercase tracking-normal">(optional)</span>
-                  </label>
-                  <input
-                    id={`onboarding-${product.id}`}
-                    type="url"
-                    name="onboarding_url"
-                    defaultValue={meta.onboarding_url ?? ''}
-                    placeholder="https://itsgoodidea.com/onboarding"
-                    className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
-                  />
-                  <p className="mt-1 text-xs text-gray-400">
-                    Where buyers land after paying for this plan. Leave blank to send them to their dashboard.
-                  </p>
-                </div>
-
-                <button className="mt-4 bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
-                  Save
-                </button>
-              </form>
-            )
-          })}
-        </div>
+        {inactiveProducts.length > 0 && (
+          <>
+            <p className="mt-8 text-xs font-mono uppercase tracking-wide text-gray-400">Inactive</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {inactiveProducts.map(({ product, prices }) => (
+                <ProductCard key={product.id} product={product} prices={prices} agencyNames={agencyNames} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
