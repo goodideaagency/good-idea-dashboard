@@ -29,22 +29,30 @@ export function ProfileMenu({
     <div ref={ref} className="relative">
       {open && (
         <div className="absolute bottom-full left-0 mb-2 w-full border border-[#ece7d8] bg-white shadow-sm">
-          <Link
-            href="/dashboard/settings"
-            onClick={() => setOpen(false)}
-            className="block px-3 py-2 text-sm text-gray-700 hover:bg-[#f6f1e4]"
-          >
-            Account details
-          </Link>
+          <p className="px-3 pt-3 pb-1 text-xs font-mono uppercase tracking-wide text-gray-400">Billing</p>
           <Link
             href="/dashboard/accounts"
             onClick={() => setOpen(false)}
             className="block px-3 py-2 text-sm text-gray-700 hover:bg-[#f6f1e4]"
           >
-            Billing
+            Managed Accounts
+          </Link>
+          <Link
+            href="/dashboard/transactions"
+            onClick={() => setOpen(false)}
+            className="block px-3 py-2 text-sm text-gray-700 hover:bg-[#f6f1e4]"
+          >
+            Transactions
+          </Link>
+          <Link
+            href="/dashboard/settings"
+            onClick={() => setOpen(false)}
+            className="block px-3 py-2 text-sm text-gray-700 hover:bg-[#f6f1e4]"
+          >
+            Agency Details
           </Link>
           <form action={signout}>
-            <button className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#f6f1e4]">
+            <button className="block w-full border-t border-[#ece7d8] px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#f6f1e4]">
               Sign out
             </button>
           </form>

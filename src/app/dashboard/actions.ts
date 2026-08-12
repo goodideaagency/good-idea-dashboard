@@ -2,6 +2,7 @@
 
 import { headers, cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import type Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
@@ -75,6 +76,17 @@ export async function addServiceAndCheckout(formData: FormData) {
   const priceId = String(formData.get('priceId') || '').trim()
   if (!priceId) redirect('/dashboard')
 
+  // Agency Credits plans aren't tied to any one client -- the credits belong
+  // to the agency itself -- so there's no account to pick or create.
+  let isCreditPlan = false
+  try {
+    const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
+    const product = price.product as Stripe.Product
+    isCreditPlan = Number(product?.metadata?.credits_per_cycle ?? 0) > 0
+  } catch {
+    // fall through -- treated as a normal managed-service plan below
+  }
+
   const existingAccountId = String(formData.get('account_id') || '').trim()
   const name = String(formData.get('name') || '').trim()
   const website = String(formData.get('website') || '').trim()
@@ -92,42 +104,45 @@ export async function addServiceAndCheckout(formData: FormData) {
   const customerId = await ensureAgencyStripeCustomer(admin, agency, user.email ?? undefined)
 
   // 2. Resolve the target account: an existing one (ownership enforced by RLS)
-  //    or a brand-new one created from the submitted name/website.
-  let accountId: string
-  let accountName: string
+  //    or a brand-new one created from the submitted name/website. Skipped
+  //    entirely for a credit plan.
+  let accountId: string | undefined
+  let accountName: string | undefined
   let returnTo = '/dashboard'
-  if (existingAccountId) {
-    const { data: acct } = await supabase
-      .from('accounts')
-      .select('id, name')
-      .eq('id', existingAccountId)
-      .maybeSingle()
-    if (!acct) redirect('/dashboard')
-    accountId = acct.id
-    accountName = acct.name
-    returnTo = `/dashboard/accounts/${accountId}`
-  } else {
-    if (!name) redirect('/dashboard')
-    const { data: account } = await admin
-      .from('accounts')
-      .insert({ agency_id: agency.id, name, website: website || null })
-      .select('id')
-      .single()
-    if (!account) redirect('/dashboard')
-    accountId = account.id
-    accountName = name
-    returnTo = `/dashboard/accounts/${accountId}`
+  if (!isCreditPlan) {
+    if (existingAccountId) {
+      const { data: acct } = await supabase
+        .from('accounts')
+        .select('id, name')
+        .eq('id', existingAccountId)
+        .maybeSingle()
+      if (!acct) redirect('/dashboard')
+      accountId = acct.id
+      accountName = acct.name
+      returnTo = `/dashboard/accounts/${accountId}`
+    } else {
+      if (!name) redirect('/dashboard')
+      const { data: account } = await admin
+        .from('accounts')
+        .insert({ agency_id: agency.id, name, website: website || null })
+        .select('id')
+        .single()
+      if (!account) redirect('/dashboard')
+      accountId = account.id
+      accountName = name
+      returnTo = `/dashboard/accounts/${accountId}`
 
-    // Same auto-provisioning a Client Profile gets -- without this, a
-    // managed service bought for a brand-new client would have nowhere in
-    // ClickUp for its post-payment intake task to land.
-    if (agency.clickup_folder_id) {
-      const list = await createList(agency.clickup_folder_id, name)
-      if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
+      // Same auto-provisioning a Client Profile gets -- without this, a
+      // managed service bought for a brand-new client would have nowhere in
+      // ClickUp for its post-payment intake task to land.
+      if (agency.clickup_folder_id) {
+        const list = await createList(agency.clickup_folder_id, name)
+        if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
+      }
     }
   }
 
-  // 3. Start a Checkout Session tied to that customer + account.
+  // 3. Start a Checkout Session tied to that customer (+ account, if any).
   const origin =
     (await headers()).get('origin') ??
     process.env.NEXT_PUBLIC_SITE_URL ??
@@ -140,10 +155,9 @@ export async function addServiceAndCheckout(formData: FormData) {
   // the session disappears after checkout but the subscription persists for
   // the life of the relationship.
   const stripeMetadata = {
-    account_id: accountId,
-    account_name: accountName,
     agency_id: agency.id,
     agency_name: agency.name,
+    ...(accountId && accountName ? { account_id: accountId, account_name: accountName } : {}),
   }
 
   const session = await stripe.checkout.sessions.create({

@@ -18,14 +18,12 @@ export function AgencySidebar({
   signout,
   unreadCount,
   creditBalance,
-  showCredits,
 }: {
   agencyName: string
   userEmail: string
   signout: () => void | Promise<void>
   unreadCount: number
   creditBalance?: number
-  showCredits?: boolean
 }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -38,8 +36,8 @@ export function AgencySidebar({
 
   const nav = (
     <nav className="mt-6 space-y-1">
-      <Link href="/dashboard" className={navCls(pathname === '/dashboard')}>
-        Dashboard
+      <Link href="/dashboard/projects" className={navCls(pathname.startsWith('/dashboard/projects'))}>
+        Projects
       </Link>
       <Link
         href="/dashboard/notifications"
@@ -50,20 +48,18 @@ export function AgencySidebar({
         Notifications
         {unreadCount > 0 && <span className="text-sm font-bold">{unreadCount}</span>}
       </Link>
-      <Link href="/dashboard/projects" className={navCls(pathname.startsWith('/dashboard/projects'))}>
-        Projects
+      <Link href="/dashboard/request" className={navCls(pathname.startsWith('/dashboard/request'))}>
+        Services
+      </Link>
+      <Link
+        href="/dashboard/credits"
+        className={`flex items-center justify-between ${navCls(pathname.startsWith('/dashboard/credits'))}`}
+      >
+        Credits
+        <span className="text-sm font-bold">{creditBalance ?? 0}</span>
       </Link>
       <Link href="/dashboard/clients" className={navCls(pathname.startsWith('/dashboard/clients'))}>
         My Clients
-      </Link>
-      <Link href="/dashboard/accounts" className={navCls(pathname.startsWith('/dashboard/accounts'))}>
-        Managed Accounts
-      </Link>
-      <Link
-        href="/dashboard/transactions"
-        className={navCls(pathname.startsWith('/dashboard/transactions'))}
-      >
-        Transactions
       </Link>
     </nav>
   )
@@ -125,21 +121,7 @@ export function AgencySidebar({
 
         {nav}
 
-        {showCredits && (
-          <Link
-            href="/dashboard/credits"
-            className={`mt-auto flex items-center justify-between px-3 py-2 text-sm font-medium ${
-              pathname.startsWith('/dashboard/credits')
-                ? 'bg-[#ece7d8] text-gray-900'
-                : 'text-gray-700 hover:bg-[#f6f1e4]'
-            }`}
-          >
-            Agency Credits
-            <span className="text-sm font-bold">{creditBalance ?? 0}</span>
-          </Link>
-        )}
-
-        <div className={`${showCredits ? '' : 'mt-auto'} border-t border-[#ece7d8] pt-4`}>
+        <div className="mt-auto border-t border-[#ece7d8] pt-4">
           <ProfileMenu agencyName={agencyName} userEmail={userEmail} signout={signout} />
         </div>
       </aside>

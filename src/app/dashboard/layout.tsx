@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { AgencySidebar } from '@/components/agency-sidebar'
-import { agencyIsCreditEligible, getAgencyCreditBalance } from '@/lib/credits'
+import { getAgencyCreditBalance } from '@/lib/credits'
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
 import { returnToAdmin } from './actions'
 import { signout } from '../login/actions'
@@ -24,9 +24,7 @@ export default async function DashboardLayout({
   ])
   const agencyName = (membership?.agencies as { name?: string } | null)?.name ?? 'your agency'
   const agencyId = membership?.agency_id as string | undefined
-  const [creditBalance, creditEligible] = agencyId
-    ? await Promise.all([getAgencyCreditBalance(agencyId), agencyIsCreditEligible(agencyId)])
-    : [0, false]
+  const creditBalance = agencyId ? await getAgencyCreditBalance(agencyId) : 0
 
   // Just a presence check for display -- returnToAdmin re-verifies the
   // token server-side before it's trusted for anything (see its own comment).
@@ -50,7 +48,6 @@ export default async function DashboardLayout({
           signout={signout}
           unreadCount={unreadCount ?? 0}
           creditBalance={creditBalance}
-          showCredits={creditEligible || creditBalance > 0}
         />
         <main className="min-w-0 flex-1 bg-white">
           <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-10">{children}</div>
