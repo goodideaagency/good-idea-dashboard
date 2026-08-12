@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -7,6 +8,7 @@ import {
   listCreditTopupProducts,
   type CreditHistoryEntry,
 } from '@/lib/credits'
+import { listPlansForAgency } from '@/lib/plans'
 import { buyCreditTopup } from './actions'
 
 function money(cents: number, currency: string) {
@@ -60,19 +62,22 @@ export default async function CreditsPage() {
 
   const { data: membership } = await supabase
     .from('agency_users')
-    .select('agency_id')
+    .select('agency_id, agencies(name)')
     .eq('user_id', user.id)
     .maybeSingle()
   if (!membership) redirect('/dashboard')
 
   const agencyId = membership.agency_id as string
+  const agencyName = (membership.agencies as { name?: string } | null)?.name ?? ''
 
-  const [balance, eligible, history, topups] = await Promise.all([
+  const [balance, eligible, history, topups, allPlans] = await Promise.all([
     getAgencyCreditBalance(agencyId),
     agencyIsCreditEligible(agencyId),
     getAgencyCreditHistory(agencyId),
     listCreditTopupProducts(),
+    listPlansForAgency(agencyName),
   ])
+  const creditPlans = allPlans.filter((p) => p.creditsPerCycle > 0)
 
   return (
     <div>
@@ -88,6 +93,29 @@ export default async function CreditsPage() {
           <p className="mt-1 font-mono text-4xl font-semibold text-gray-900">{balance}</p>
           <p className="mt-1 text-sm text-gray-500">credits available</p>
         </div>
+
+        {creditPlans.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold text-gray-900">Agency Support Plans</h2>
+            <p className="mt-1 text-sm text-gray-500">Monthly plans that grant credits every cycle.</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {creditPlans.map((p) => (
+                <div key={p.id} className="flex flex-col justify-between bg-white p-5 ring-1 ring-[#ece7d8]">
+                  <div>
+                    <p className="font-semibold text-gray-900">{p.label}</p>
+                    <p className="text-sm text-gray-500">{p.creditsPerCycle} credits/cycle</p>
+                  </div>
+                  <Link
+                    href={`/dashboard/add?plan=${encodeURIComponent(p.id)}`}
+                    className="mt-4 flex items-center justify-center bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95"
+                  >
+                    Start This Service
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {eligible && topups.length > 0 && (
           <div className="mt-8">
