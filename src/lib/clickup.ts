@@ -183,8 +183,10 @@ export async function getListFields(listId: string): Promise<ClickUpField[]> {
       id: f.id,
       name: f.name,
       type: f.type,
+      // "labels" (multi-select) options come back as { label } instead of
+      // { name } -- normalized here so callers only ever deal with `.name`.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      options: (f.type_config?.options ?? []).map((o: any) => ({ id: o.id, name: o.name })),
+      options: (f.type_config?.options ?? []).map((o: any) => ({ id: o.id, name: o.name ?? o.label })),
     }))
   } catch {
     return []

@@ -45,7 +45,29 @@ function FieldInput({ f }: { f: ClickUpField }) {
   return <textarea id={`field-${f.id}`} name={`field_${f.id}`} rows={3} required className={inputCls} />
 }
 
+// "labels" is ClickUp's multi-select type -- rendered as a checkbox group
+// (all sharing one field name, collected server-side via formData.getAll())
+// rather than the single-control pattern the other types use. Left optional
+// like single checkboxes, since HTML has no way to require "at least one of
+// these checked."
+function LabelsField({ f }: { f: ClickUpField }) {
+  return (
+    <fieldset>
+      <legend className="block text-sm font-medium text-gray-700">{f.name}</legend>
+      <div className="mt-1 space-y-1.5">
+        {f.options.map((o) => (
+          <label key={o.id} className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" name={`field_${f.id}`} value={o.id} className="h-4 w-4" />
+            {o.name}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
 function Field({ f }: { f: ClickUpField }) {
+  if (f.type === 'labels') return <LabelsField f={f} />
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700" htmlFor={`field-${f.id}`}>

@@ -43,6 +43,65 @@ export type FieldSection = { title: string; fieldIds: string[] }
 // difference from this base gets charged/refunded (reconcileTaskCost).
 export type OneTimeServiceDef = ServiceDef & { baseCreditCost: number }
 
+// PPC Account Audit intake -- mirrors the standalone "Audit Intake" form
+// (agency name/email/website are skipped here since the platform already
+// knows who's asking; everything else matches its pages 2-6 1:1).
+const PPC_AUDIT_SECTIONS: FieldSection[] = [
+  {
+    title: 'About Your Agency',
+    fieldIds: [
+      '2b376e76-e730-4bb4-8090-fee40af9c582', // Monthly Google Ads Spend
+      'c7e47d37-d27a-4bc8-9f0b-56857099d5f9', // Client Accounts Managed
+      '2ea64bc0-86f8-4a77-b072-12fd722acd53', // Currently Outsourcing PPC?
+      'a9358ca9-eca6-457d-931a-88e702d3ff35', // Primary Goal with PPC Support
+    ],
+  },
+  {
+    title: 'Account Details',
+    fieldIds: [
+      '0da31b43-7299-4c84-8218-ff618751525f', // Google Ads Account to Audit
+      'a32fb8fb-05f4-4bab-8f12-a0527fc2d33d', // Anything Important We Should Know?
+    ],
+  },
+  {
+    title: 'Where do you think the account may be underperforming? — Performance',
+    fieldIds: ['d9257a9b-5594-43b4-ae25-2f39e36fb2f2'], // Performance Issues
+  },
+  {
+    title: 'Targeting',
+    fieldIds: ['73013423-fa58-46c0-a8d9-6968fc44bd58'], // Targeting Issues
+  },
+  {
+    title: 'Account Structure & Optimization',
+    fieldIds: ['8a139a1c-ab07-4073-b13f-ef0ed5f19f72'], // Account Structure & Optimization Issues
+  },
+  {
+    title: 'Ads & Creative',
+    fieldIds: ['a30177e8-bf72-4597-9fa4-06f4ce5e7036'], // Ads & Creative Issues
+  },
+  {
+    title: 'Funnel',
+    fieldIds: ['59cf995c-d56a-4aaa-bec2-8aa24e9536ba'], // Funnel Issues
+  },
+  {
+    title: 'Tracking',
+    fieldIds: ['d97add94-48b5-4a53-8cf0-3c59096f4f9a'], // Tracking Issues
+  },
+  {
+    title: 'Management Issues',
+    fieldIds: ['d771944a-f9b2-4628-b726-87585d517f16'], // Management Issues
+  },
+  {
+    title: 'Current Management',
+    fieldIds: ['fc0c29f6-131c-4f84-8efb-5560097d95d0'], // Current Management Setup
+  },
+  {
+    title: 'Access for the Audit',
+    fieldIds: ['db4b6770-6f05-43a1-a3bc-1b4cf353308d'], // Access Granted for Audit?
+  },
+]
+const PPC_AUDIT_FIELD_IDS = PPC_AUDIT_SECTIONS.flatMap((s) => s.fieldIds)
+
 export const ONE_TIME_SERVICES: OneTimeServiceDef[] = [
   {
     key: 'consulting-30',
@@ -71,11 +130,8 @@ export const ONE_TIME_SERVICES: OneTimeServiceDef[] = [
     internalListId: '901418382325',
     templateId: 't-86bb24h91',
     baseCreditCost: 2,
-    fieldIds: [
-      '7128daaa-752c-448b-8966-eb3ded4f76f6', // Ad platform(s)
-      '9329b5d4-bbd2-4f22-8034-33691ad57932', // Link to ad account
-      '1bf6a853-4f69-4b5d-ac48-9befb405f00d', // What prompted this audit?
-    ],
+    fieldIds: PPC_AUDIT_FIELD_IDS,
+    sections: PPC_AUDIT_SECTIONS,
   },
   {
     key: 'basic-tracking-setup',

@@ -8,6 +8,10 @@ function formatValue(f: ClickUpField, value: unknown): string {
     const opt = f.options.find((o) => o.id === value)
     return opt?.name ?? String(value)
   }
+  if (f.type === 'labels' && Array.isArray(value)) {
+    if (value.length === 0) return '—'
+    return value.map((id) => f.options.find((o) => o.id === id)?.name ?? String(id)).join(', ')
+  }
   if (f.type === 'date' && typeof value === 'number') {
     return new Date(value).toLocaleDateString()
   }

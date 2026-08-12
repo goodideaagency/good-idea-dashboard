@@ -14,7 +14,14 @@ import { getManagedServiceByPriceId } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseFieldValue(type: string, raw: FormDataEntryValue | null): any {
+function parseFieldValue(formData: FormData, fieldId: string, type: string): any {
+  // "labels" is multi-select -- every checked option shares one field name,
+  // so it's collected as a list instead of a single value.
+  if (type === 'labels') {
+    const values = formData.getAll(`field_${fieldId}`).map(String)
+    return values.length > 0 ? values : undefined
+  }
+  const raw = formData.get(`field_${fieldId}`)
   if (type === 'checkbox') return raw === 'on'
   if (raw === null || raw === '') return undefined
   if (type === 'number') return Number(raw)
@@ -63,7 +70,7 @@ export async function submitManagedServiceIntake(formData: FormData) {
   // File object being sent as a plain field value.
   const customFields = fields
     .filter((f) => f.type !== 'attachment')
-    .map((f) => ({ id: f.id, value: parseFieldValue(f.type, formData.get(`field_${f.id}`)) }))
+    .map((f) => ({ id: f.id, value: parseFieldValue(formData, f.id, f.type) }))
     .filter((f) => f.value !== undefined)
 
   // A readable, grouped writeup of the answers -- this becomes the task's
