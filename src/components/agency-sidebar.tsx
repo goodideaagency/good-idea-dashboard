@@ -51,13 +51,6 @@ export function AgencySidebar({
       <Link href="/dashboard/request" className={navCls(pathname.startsWith('/dashboard/request'))}>
         Services
       </Link>
-      <Link
-        href="/dashboard/credits"
-        className={`flex items-center justify-between ${navCls(pathname.startsWith('/dashboard/credits'))}`}
-      >
-        Credits
-        <span className="text-sm font-bold">{creditBalance ?? 0}</span>
-      </Link>
       <Link href="/dashboard/clients" className={navCls(pathname.startsWith('/dashboard/clients'))}>
         My Clients
       </Link>
@@ -121,7 +114,19 @@ export function AgencySidebar({
 
         {nav}
 
-        <div className="mt-auto border-t border-[#ece7d8] pt-4">
+        <Link
+          href="/dashboard/credits"
+          className={`mt-auto flex items-center justify-between px-3 py-2 text-sm font-medium ${
+            pathname.startsWith('/dashboard/credits')
+              ? 'bg-[#ece7d8] text-gray-900'
+              : 'text-gray-700 hover:bg-[#f6f1e4]'
+          }`}
+        >
+          Agency Credits
+          <span className="text-sm font-bold">{creditBalance ?? 0}</span>
+        </Link>
+
+        <div className="border-t border-[#ece7d8] pt-4">
           <ProfileMenu agencyName={agencyName} userEmail={userEmail} signout={signout} />
         </div>
       </aside>
