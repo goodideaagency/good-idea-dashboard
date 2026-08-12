@@ -91,8 +91,13 @@ export async function POST(request: NextRequest) {
     if (event.type === 'invoice.paid') {
       const invoice = event.data.object as Stripe.Invoice
       const source = GRANT_SOURCE[invoice.billing_reason ?? '']
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const invoiceSub = (invoice as any).subscription as string | { id: string } | null | undefined
+      // As of API version 2025-03-31.basil, invoices no longer have a
+      // top-level `subscription` field -- it moved under
+      // parent.subscription_details.subscription. Reading the old field
+      // silently returned undefined here, which meant this whole block was
+      // a no-op for every invoice: no error, no retry, just no credits ever
+      // granted -- confirmed live on the "Good Buddies" signup.
+      const invoiceSub = invoice.parent?.subscription_details?.subscription
       const subId = typeof invoiceSub === 'string' ? invoiceSub : invoiceSub?.id
 
       if (source && subId) {
