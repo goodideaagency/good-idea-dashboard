@@ -55,8 +55,18 @@ export async function provisionSignupAgency(
 
     // Creates the owner's auth user (unconfirmed, invited) so they exist by
     // the time the browser reaches the checkout return page -- that page
-    // mints its own fresh sign-in link rather than reusing this one, so a
-    // failure here (e.g. email already registered) isn't fatal to signup.
+    // mints its own fresh sign-in link rather than reusing this one. The DB
+    // trigger (migration 0004) reads agency_id out of the invite's metadata
+    // to attach them to this agency -- but that trigger only fires on a
+    // brand-new auth.users row, so it does nothing for an email that already
+    // has an account. That's expected to be unreachable now: signup blocks
+    // an already-registered email before payment even starts (see
+    // startSignupCheckout) specifically because this app's data model, like
+    // most of its queries, assumes one agency per login -- confirmed live
+    // that attaching a second agency to an existing login breaks their
+    // original one (agency_users.maybeSingle() errors on >1 row). If this
+    // still somehow races past that guard, better to leave the agency
+    // unattached (an admin can sort it out) than corrupt an existing login.
     await admin.auth.admin
       .generateLink({
         type: 'invite',

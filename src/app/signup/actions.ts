@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { stripe } from '@/lib/stripe'
 import { listSignupPlans } from '@/lib/plans'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // Starts a signup Checkout Session -- no Supabase user or agency exists yet.
 // Everything (agency, ClickUp Folder, subscription, owner login) gets
@@ -22,6 +23,22 @@ export async function startSignupCheckout(formData: FormData) {
   if (!ownerName) back('error=' + encodeURIComponent('Enter your name.'))
   if (!ownerEmail || !ownerEmail.includes('@')) {
     back('error=' + encodeURIComponent('Enter a valid email.'))
+  }
+
+  // Block this up front, before any payment happens -- our data model
+  // (like most of the app's queries) assumes one agency per login, so
+  // letting checkout succeed for an email that already has an account
+  // would leave the new agency created but unreachable (confirmed live:
+  // the invite that's supposed to attach it 422s since the user already
+  // exists, and attaching it a different way instead broke that person's
+  // EXISTING agency by giving them two memberships at once).
+  const admin = createAdminClient()
+  const { data: emailTaken } = await admin.rpc('email_has_account', { p_email: ownerEmail })
+  if (emailTaken) {
+    back(
+      'error=' +
+        encodeURIComponent('An account with this email already exists. Log in and add this plan from your dashboard instead.')
+    )
   }
 
   // Never trust the price id from the client -- only plans we actually offer
