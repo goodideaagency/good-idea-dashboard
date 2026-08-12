@@ -104,3 +104,33 @@ export async function updateClientProfile(formData: FormData) {
   revalidatePath(`/dashboard/clients/${accountId}`)
   revalidatePath('/dashboard/clients')
 }
+
+// Archiving is a Supabase-only flag -- nothing in ClickUp is touched (their
+// List, tasks, and files all stay exactly where they are), so restoring a
+// client just un-hides everything again. Archived clients still work fine on
+// direct links; they're only hidden from the main My Clients list and from
+// the account picker when starting a new service request.
+export async function setAccountArchived(formData: FormData) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const accountId = String(formData.get('account_id') || '').trim()
+  const archived = formData.get('archived') === 'true'
+  if (!accountId) redirect('/dashboard/clients')
+
+  const { data: owned } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('id', accountId)
+    .maybeSingle()
+  if (!owned) redirect('/dashboard/clients')
+
+  const admin = createAdminClient()
+  await admin.from('accounts').update({ archived }).eq('id', accountId)
+
+  revalidatePath(`/dashboard/clients/${accountId}`)
+  revalidatePath('/dashboard/clients')
+}

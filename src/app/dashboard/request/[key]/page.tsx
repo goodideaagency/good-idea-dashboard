@@ -36,7 +36,7 @@ export default async function RequestServiceFormPage({
     .maybeSingle()
 
   const [{ data: accounts }, allFields, balance] = await Promise.all([
-    supabase.from('accounts').select('id, name, clickup_list_id').order('name'),
+    supabase.from('accounts').select('id, name, clickup_list_id').eq('archived', false).order('name'),
     getListFields(service.internalListId),
     membership?.agency_id ? getAgencyCreditBalance(membership.agency_id as string) : Promise.resolve(0),
   ])

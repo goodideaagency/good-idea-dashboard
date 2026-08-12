@@ -26,7 +26,7 @@ export default async function AddAccountPage({
 
   const [plans, { data: accounts }] = await Promise.all([
     listPlansForAgency(agencyName),
-    supabase.from('accounts').select('id, name').order('name'),
+    supabase.from('accounts').select('id, name').eq('archived', false).order('name'),
   ])
 
   // Agency Credits plans aren't tied to a client -- skip the account picker

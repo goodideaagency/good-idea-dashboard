@@ -5,7 +5,7 @@ import { ClickUpStatusPill } from '@/components/clickup-status-pill'
 import { LogoUploader } from '@/components/logo-uploader'
 import { AccountFiles } from '@/components/account-files'
 import { getTask, listTaskSummariesForAccount } from '@/lib/clickup'
-import { updateClientProfile } from '../actions'
+import { updateClientProfile, setAccountArchived } from '../actions'
 
 const inputCls =
   'mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
@@ -17,6 +17,7 @@ type AccountRow = {
   logo_url: string | null
   clickup_list_id: string | null
   clickup_profile_task_id: string | null
+  archived: boolean
 }
 
 export default async function ClientProfilePage({
@@ -34,7 +35,7 @@ export default async function ClientProfilePage({
   // Row-level security ensures this only returns an account in the user's agency.
   const { data: account } = await supabase
     .from('accounts')
-    .select('id, name, website, logo_url, clickup_list_id, clickup_profile_task_id')
+    .select('id, name, website, logo_url, clickup_list_id, clickup_profile_task_id, archived')
     .eq('id', id)
     .maybeSingle<AccountRow>()
 
@@ -52,15 +53,31 @@ export default async function ClientProfilePage({
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">{account.name}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-semibold text-gray-900">{account.name}</h1>
+            {account.archived && (
+              <span className="border border-[#e7e2d3] px-2 py-0.5 text-xs font-mono uppercase tracking-wide text-gray-500">
+                Archived
+              </span>
+            )}
+          </div>
           {account.website && <p className="mt-1 text-sm text-gray-500">{account.website}</p>}
         </div>
-        <Link
-          href="/dashboard/clients"
-          className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-        >
-          ← Back
-        </Link>
+        <div className="flex items-center gap-2">
+          <form action={setAccountArchived}>
+            <input type="hidden" name="account_id" value={account.id} />
+            <input type="hidden" name="archived" value={account.archived ? 'false' : 'true'} />
+            <button className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
+              {account.archived ? 'Restore client' : 'Archive client'}
+            </button>
+          </form>
+          <Link
+            href="/dashboard/clients"
+            className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+          >
+            ← Back
+          </Link>
+        </div>
       </div>
 
       <div className="mx-auto mt-8 max-w-3xl">
