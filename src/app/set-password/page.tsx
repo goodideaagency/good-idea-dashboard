@@ -9,9 +9,9 @@ const inputCls =
 export default async function SetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; next?: string }>
 }) {
-  const { error } = await searchParams
+  const { error, next } = await searchParams
 
   const supabase = await createClient()
   const {
@@ -36,6 +36,7 @@ export default async function SetPasswordPage({
         )}
 
         <form className="mt-6 space-y-4" action={setPassword}>
+          {next && <input type="hidden" name="next" value={next} />}
           <div>
             <label className="block text-sm font-medium text-gray-700" htmlFor="password">
               New password

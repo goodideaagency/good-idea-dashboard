@@ -16,15 +16,17 @@ export async function setPassword(formData: FormData) {
   }
 
   const password = String(formData.get('password') || '')
-  if (password.length < 8) {
-    redirect('/set-password?error=' + encodeURIComponent('Password must be at least 8 characters.'))
-  }
+  // Only ever set by our own routes to a relative in-app path -- reject
+  // anything else so this can't be turned into an open redirect.
+  const rawNext = String(formData.get('next') || '')
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
+  const back = (error: string): never => redirect(`/set-password?next=${encodeURIComponent(next)}&error=${encodeURIComponent(error)}`)
+
+  if (password.length < 8) back('Password must be at least 8 characters.')
 
   const { error } = await supabase.auth.updateUser({ password })
-  if (error) {
-    redirect('/set-password?error=' + encodeURIComponent(error.message))
-  }
+  if (error) back(error.message)
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect(next)
 }

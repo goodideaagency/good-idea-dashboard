@@ -33,10 +33,17 @@ export async function GET(request: NextRequest) {
     })
     if (error || !link) return NextResponse.redirect(failUrl)
 
-    const next =
+    const finalDestination =
       result.kind === 'managed'
         ? `/dashboard/onboarding/new-client?price_id=${encodeURIComponent(result.priceId)}`
         : '/dashboard'
+
+    // A brand-new signup never sets a password (they only ever used Stripe
+    // Checkout + this magic link), which would leave them unable to log
+    // back in later via the normal email+password form. Route through
+    // set-password first, same as the admin-invite flow already does, then
+    // continue on to wherever they were originally headed.
+    const next = `/set-password?next=${encodeURIComponent(finalDestination)}`
 
     const confirmUrl = new URL('/auth/confirm', request.url)
     confirmUrl.searchParams.set('token_hash', link.properties.hashed_token)
