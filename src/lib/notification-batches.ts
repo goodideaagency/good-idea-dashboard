@@ -8,6 +8,10 @@ export type BatchItem = {
   actor: string
   at: string // ISO
   taskName: string
+  // Set when this change was the platform itself posting on behalf of a
+  // specific agency user (see platform_comment_markers) -- used to skip
+  // notifying that exact person about their own comment.
+  authorUserId?: string
 }
 
 const COMMENT_WINDOW_SECONDS = 2 * 60
@@ -118,7 +122,12 @@ export async function flushBatch(batchId: string): Promise<void> {
     .from('agency_users')
     .select('user_id')
     .eq('agency_id', account.agency_id)
-  const userIds = (agencyUsers ?? []).map((u) => u.user_id)
+  const allUserIds = (agencyUsers ?? []).map((u) => u.user_id)
+  // Skip anyone for whom every item in this batch is their own comment --
+  // there's nothing new for them to see. If the batch mixes their comment
+  // with someone else's activity, they still get notified (about the part
+  // that's actually new to them).
+  const userIds = allUserIds.filter((uid) => items.some((i) => i.authorUserId !== uid))
 
   const title = summarize(batch.category, items)
   const body = items.map((i) => i.detail).join('\n')

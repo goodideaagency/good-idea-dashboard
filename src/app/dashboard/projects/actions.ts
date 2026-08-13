@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getTaskListId, postTaskComment } from '@/lib/clickup'
 
 // Posts a client's comment onto a ClickUp task, labeled with their own name
@@ -34,7 +35,24 @@ export async function postProjectComment(formData: FormData) {
   const taskListId = await getTaskListId(taskId)
   if (taskListId !== account.clickup_list_id) redirect(`/dashboard/projects/${taskId}`)
 
+  // Dropped BEFORE posting so the webhook (which fires almost immediately)
+  // can recover who really wrote this -- every platform-posted comment goes
+  // through one shared ClickUp bot account, so ClickUp's own event has no
+  // way to tell us that itself. Lets the notification pipeline skip
+  // telling this exact person about their own comment.
+  const admin = createAdminClient()
+  await admin.from('platform_comment_markers').insert({ task_id: taskId, user_id: user.id })
+
   const authorName = (user.user_metadata as { full_name?: string })?.full_name
-  await postTaskComment(taskId, authorName || user.email || 'Client', text)
+  const posted = await postTaskComment(taskId, authorName || user.email || 'Client', text)
+  if (!posted) {
+    // Was silently discarded before -- the client would see their comment
+    // "post" successfully while it never actually reached ClickUp, with no
+    // way to know it needed retrying.
+    redirect(
+      `/dashboard/projects/${taskId}?error=` +
+        encodeURIComponent('Could not post your comment. Please try again.')
+    )
+  }
   revalidatePath(`/dashboard/projects/${taskId}`)
 }

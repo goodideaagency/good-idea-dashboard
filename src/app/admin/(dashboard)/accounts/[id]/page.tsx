@@ -53,8 +53,11 @@ export default async function AdminAccountDetailPage({
     (a.created_at ?? '').localeCompare(b.created_at ?? '')
   )
 
+  // listTasksForAccount now throws on a real ClickUp failure (see
+  // clickup.ts) instead of quietly returning [] -- caught here so a
+  // transient hiccup doesn't crash this internal admin page.
   const tasks = account.clickup_list_id
-    ? await listTasksForAccount(account.clickup_list_id)
+    ? await listTasksForAccount(account.clickup_list_id).catch(() => [])
     : []
 
   // Fetch each service's transaction history (one Stripe call per subscription).

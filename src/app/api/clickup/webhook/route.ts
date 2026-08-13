@@ -81,26 +81,61 @@ export async function POST(req: NextRequest) {
   const kind = resolveKind(event, historyItems)
   if (!taskId || !kind) return NextResponse.json({ ok: true })
 
-  const task = await getTask(taskId)
-  if (!task) return NextResponse.json({ ok: true })
+  try {
+    // null here means the task genuinely doesn't exist (a real 404, e.g. it
+    // was deleted moments after this event fired) -- any other ClickUp
+    // failure now throws instead (see getTask), caught below so it returns
+    // a real error status and ClickUp retries the delivery, rather than
+    // this reporting success and permanently losing the notification.
+    const task = await getTask(taskId)
+    if (!task) return NextResponse.json({ ok: true })
 
-  const admin = createAdminClient()
-  const { data: account } = await admin
-    .from('accounts')
-    .select('id')
-    .eq('clickup_list_id', task.listId)
-    .maybeSingle()
-  if (!account) return NextResponse.json({ ok: true })
+    const admin = createAdminClient()
+    const { data: account } = await admin
+      .from('accounts')
+      .select('id')
+      .eq('clickup_list_id', task.listId)
+      .maybeSingle()
+    if (!account) return NextResponse.json({ ok: true })
 
-  const actor = historyItems[0]?.user?.username ?? 'Someone on the team'
-  const item: BatchItem = {
-    type: kind,
-    detail: describeChange(kind, actor, task),
-    actor,
-    at: new Date().toISOString(),
-    taskName: task.name,
+    // Comments and attachments are the two kinds the platform itself can
+    // post (always through one shared ClickUp bot account) -- check for a
+    // recent marker to recover which real agency user it actually was, so
+    // the notification pipeline can skip telling them about their own
+    // comment (see platform_comment_markers) and so the activity text
+    // names the actual person instead of the bot.
+    let actor = historyItems[0]?.user?.username ?? 'Someone on the team'
+    let authorUserId: string | undefined
+    if (kind === 'comment' || kind === 'attachment') {
+      const { data: marker } = await admin
+        .from('platform_comment_markers')
+        .select('user_id')
+        .eq('task_id', taskId)
+        .gte('created_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (marker) {
+        authorUserId = marker.user_id
+        const { data } = await admin.auth.admin.getUserById(marker.user_id)
+        const name = (data?.user?.user_metadata as { full_name?: string })?.full_name
+        actor = name || data?.user?.email || actor
+      }
+    }
+
+    const item: BatchItem = {
+      type: kind,
+      detail: describeChange(kind, actor, task),
+      actor,
+      at: new Date().toISOString(),
+      taskName: task.name,
+      authorUserId,
+    }
+
+    await recordChange(account.id, taskId, CATEGORY[kind], item)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('ClickUp webhook handler error:', err)
+    return new NextResponse('Handler error', { status: 500 })
   }
-
-  await recordChange(account.id, taskId, CATEGORY[kind], item)
-  return NextResponse.json({ ok: true })
 }

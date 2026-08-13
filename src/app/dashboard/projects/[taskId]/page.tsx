@@ -7,16 +7,24 @@ import { postProjectComment } from '../actions'
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ taskId: string }>
+  searchParams: Promise<{ error?: string }>
 }) {
   const { taskId } = await params
+  const { error } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // null here means the task genuinely doesn't exist (a stale/bad link) --
+  // any other ClickUp failure now throws instead (see getTask), so it isn't
+  // mistaken for the same thing. Let that propagate to Next's error
+  // boundary rather than silently bouncing back to /dashboard/projects with
+  // no explanation, which is what used to happen for BOTH cases alike.
   const task = await getTask(taskId)
   if (!task) redirect('/dashboard/projects')
 
@@ -43,6 +51,10 @@ export default async function ProjectDetailPage({
           ← Back to projects
         </Link>
       </div>
+
+      {error && (
+        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
 
       <div className="mt-8">
         <ProjectTasks tasks={[task]} accountId={account.id} commentAction={postProjectComment} />

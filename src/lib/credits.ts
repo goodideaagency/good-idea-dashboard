@@ -1,3 +1,4 @@
+import type Stripe from 'stripe'
 import { stripe } from './stripe'
 import { createAdminClient } from './supabase/admin'
 
@@ -133,7 +134,7 @@ export async function grantAgencyCredits(
 ): Promise<void> {
   if (amount <= 0) return
   const admin = createAdminClient()
-  await admin.rpc('grant_agency_credits', {
+  const { error } = await admin.rpc('grant_agency_credits', {
     p_agency_id: agencyId,
     p_amount: amount,
     p_source: source,
@@ -141,6 +142,33 @@ export async function grantAgencyCredits(
     p_note: opts.note ?? null,
     p_created_by: opts.createdBy ?? null,
     p_clickup_task_id: opts.clickupTaskId ?? null,
+  })
+  // Supabase-js doesn't throw on a failed RPC by default -- every caller
+  // here is the Stripe webhook, which needs this to throw so its try/catch
+  // returns a 500 and Stripe retries the delivery, instead of a DB error
+  // being silently discarded and the grant lost forever behind a 200 OK.
+  if (error) throw new Error(`grant_agency_credits failed: ${error.message}`)
+}
+
+// Grants credits for a completed one-time top-up Checkout Session.
+// Idempotent on the SESSION id (not the delivering Stripe event id) -- safe
+// to call from both the webhook (primary) and the checkout return page
+// (fallback, in case that event is delayed or never delivered), same
+// pattern as provisionSignupAgency for signups. Before this existed, a lost
+// top-up webhook meant the customer was charged real money and simply never
+// received the credits, with nothing to catch it.
+export async function grantTopupCredits(session: Stripe.Checkout.Session): Promise<void> {
+  const agencyId = session.metadata?.agency_id
+  if (!agencyId) return
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    expand: ['data.price.product'],
+  })
+  const product = lineItems.data[0]?.price?.product as Stripe.Product | undefined
+  const credits = Number(product?.metadata?.credit_amount ?? 0)
+  if (credits <= 0) return
+  await grantAgencyCredits(agencyId, credits, 'topup', {
+    stripeEventId: session.id,
+    note: `${product?.name ?? 'Credit top-up'} purchase`,
   })
 }
 
@@ -174,42 +202,66 @@ export async function spendAgencyCredits(
 // active credit-granting subscription is cancelled (see the Stripe webhook).
 export async function forfeitAgencyCredits(agencyId: string): Promise<void> {
   const admin = createAdminClient()
-  await admin.rpc('forfeit_agency_credits', { p_agency_id: agencyId })
+  const { error } = await admin.rpc('forfeit_agency_credits', { p_agency_id: agencyId })
+  if (error) throw new Error(`forfeit_agency_credits failed: ${error.message}`)
 }
 
-// How many credits have already been charged for a specific ClickUp task --
-// used to turn a "Credit Cost" field edit into a charge/refund of just the
-// difference, instead of double-charging the original amount.
+// The net amount currently charged against a specific ClickUp task -- used
+// to turn a "Credit Cost" field edit into a charge/refund of just the
+// difference, instead of double-charging the original amount. Must net out
+// any prior task_cost_decrease refunds (see reconcileTaskCost), which land
+// as fresh credit_grants rows, not as negative credit_charges -- otherwise
+// a cost that's lowered then later raised again computes the wrong delta.
+// Confirmed: without this, lower-then-raise permanently undercharges the
+// agency by the refunded amount.
 export async function getAlreadyChargedForTask(clickupTaskId: string): Promise<number> {
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('credit_charges')
-    .select('amount')
-    .eq('clickup_task_id', clickupTaskId)
-  return (data ?? []).reduce((sum, c) => sum + (c.amount as number), 0)
+  const [{ data: charges }, { data: refunds }] = await Promise.all([
+    admin.from('credit_charges').select('amount').eq('clickup_task_id', clickupTaskId),
+    admin
+      .from('credit_grants')
+      .select('amount')
+      .eq('clickup_task_id', clickupTaskId)
+      .eq('source', 'task_cost_decrease'),
+  ])
+  const totalCharged = (charges ?? []).reduce((sum, c) => sum + (c.amount as number), 0)
+  const totalRefunded = (refunds ?? []).reduce((sum, g) => sum + (g.amount as number), 0)
+  return totalCharged - totalRefunded
 }
+
+export type ReconcileTaskCostResult = { ok: true } | { ok: false; shortfall: number }
 
 // Reconciles a task's Credit Cost field to a new total: charges the
 // difference if it went up, refunds (as a fresh grant) if it went down.
 // Idempotent in effect -- re-processing the same field value is a no-op
 // since the delta against what's already charged is 0.
+//
+// Returns ok: false (with the amount that couldn't be charged) if the
+// agency's balance is insufficient -- spendAgencyCredits already declines
+// to overdraw rather than throwing, but the caller here used to just
+// discard that outcome. The ledger permanently under-reflected the real
+// task cost with nothing anywhere surfacing it -- see the ClickUp webhook,
+// which now posts a comment on the task so your team sees it where they're
+// already working.
 export async function reconcileTaskCost(
   agencyId: string,
   accountId: string | null,
   clickupTaskId: string,
   newTotalCost: number
-): Promise<void> {
+): Promise<ReconcileTaskCostResult> {
   const alreadyCharged = await getAlreadyChargedForTask(clickupTaskId)
   const delta = newTotalCost - alreadyCharged
   if (delta > 0) {
-    await spendAgencyCredits(agencyId, delta, 'task_cost_increase', {
+    const spent = await spendAgencyCredits(agencyId, delta, 'task_cost_increase', {
       accountId: accountId ?? undefined,
       clickupTaskId,
     })
+    if (!spent) return { ok: false, shortfall: delta }
   } else if (delta < 0) {
     await grantAgencyCredits(agencyId, -delta, 'task_cost_decrease', {
       clickupTaskId,
       note: 'Task Credit Cost was lowered',
     })
   }
+  return { ok: true }
 }

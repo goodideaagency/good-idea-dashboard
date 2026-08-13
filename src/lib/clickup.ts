@@ -100,20 +100,20 @@ function normalizeAttachments(attachments: any[]): ClickUpAttachment[] {
 // Every task in a client's ClickUp List, WITHOUT comments/attachments — for
 // list/table views (Dashboard, Projects) where fetching dozens of tasks at
 // once needs to stay cheap. Returns [] if unset or ClickUp is unreachable.
+// Throws on any ClickUp failure instead of swallowing it to [] -- an empty
+// array used to mean either "this account genuinely has zero tasks" or
+// "ClickUp errored/is unreachable," indistinguishably. Callers should catch
+// this per-account (see listProjectTasksForAgency) rather than let one
+// failure blank out everything else.
 export async function listTaskSummariesForAccount(
   listId: string
 ): Promise<ClickUpTaskSummary[]> {
-  try {
-    const res = await fetch(
-      `${BASE_URL}/list/${listId}/task?archived=false&include_closed=true`,
-      { headers: headers() }
-    )
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data.tasks ?? []).map(normalizeTask)
-  } catch {
-    return []
-  }
+  const res = await fetch(`${BASE_URL}/list/${listId}/task?archived=false&include_closed=true`, {
+    headers: headers(),
+  })
+  if (!res.ok) throw new Error(`ClickUp listTaskSummariesForAccount ${listId} failed: HTTP ${res.status}`)
+  const data = await res.json()
+  return (data.tasks ?? []).map(normalizeTask)
 }
 
 // Every task in a client's ClickUp List, WITH comments and attachments — what
@@ -135,17 +135,20 @@ export async function listTasksForAccount(listId: string): Promise<ClickUpTask[]
 }
 
 // A single task by id, with comments and attachments — the Projects detail
-// page. Returns null if the task doesn't exist or ClickUp is unreachable.
+// page. Returns null only when the task genuinely doesn't exist (a real 404) --
+// any other failure (ClickUp down, rate-limited, network error) THROWS
+// instead of also returning null. Callers used to be unable to tell "this
+// task is really gone" apart from "ClickUp is having a moment" -- both
+// looked identical, which meant transient failures silently rendered as
+// empty states or bounced users away with no explanation. Callers should
+// catch this and show/report the failure rather than treating it as absence.
 export async function getTask(taskId: string): Promise<ClickUpTask | null> {
-  try {
-    const res = await fetch(`${BASE_URL}/task/${taskId}`, { headers: headers() })
-    if (!res.ok) return null
-    const data = await res.json()
-    const comments = await fetchTaskComments(taskId)
-    return { ...normalizeTask(data), comments, attachments: normalizeAttachments(data.attachments) }
-  } catch {
-    return null
-  }
+  const res = await fetch(`${BASE_URL}/task/${taskId}`, { headers: headers() })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`ClickUp getTask ${taskId} failed: HTTP ${res.status}`)
+  const data = await res.json()
+  const comments = await fetchTaskComments(taskId)
+  return { ...normalizeTask(data), comments, attachments: normalizeAttachments(data.attachments) }
 }
 
 // Which List a task belongs to — used to verify a client is only ever
@@ -246,6 +249,18 @@ export async function createTask(
   }
 }
 
+// Deletes a task -- used to clean up an internal-ops task created just
+// before a credit spend that then failed (a real race with the balance
+// pre-check), so a losing request doesn't leave a stray unpaid task behind.
+export async function deleteTask(taskId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}`, { method: 'DELETE', headers: headers() })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // Adds assignees to an existing task -- used after template-based creation,
 // since that endpoint (like custom_fields) ignores an inline assignees param.
 export async function assignTask(taskId: string, userIds: number[]): Promise<boolean> {
@@ -340,6 +355,94 @@ export async function createTaskFromTemplate(
   } catch {
     return null
   }
+}
+
+// Ensures a List has a "Client Status" dropdown Custom Field (Active /
+// Archived), creating it the first time it's needed rather than requiring
+// every agency's Client Profiles list to be pre-configured by hand.
+// Idempotent: a second call just finds the field that's already there.
+export async function ensureClientStatusField(
+  listId: string
+): Promise<{ fieldId: string; activeIndex: number; archivedIndex: number } | null> {
+  const indicesFrom = (options: { name?: string; label?: string; orderindex: number }[]) => {
+    const activeIndex = options.find((o) => (o.name ?? o.label) === 'Active')?.orderindex
+    const archivedIndex = options.find((o) => (o.name ?? o.label) === 'Archived')?.orderindex
+    return activeIndex !== undefined && archivedIndex !== undefined ? { activeIndex, archivedIndex } : null
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const findExisting = async (): Promise<{ fieldId: string; activeIndex: number; archivedIndex: number } | null> => {
+    try {
+      const res = await fetch(`${BASE_URL}/list/${listId}/field`, { headers: headers() })
+      if (!res.ok) return null
+      const data = await res.json()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const matches = (data.fields ?? []).filter((f: any) => f.name === 'Client Status' && f.type === 'drop_down')
+      if (matches.length === 0) return null
+      // Two concurrent first-ever calls for the same List could each create
+      // their own copy of this field before seeing the other's -- if that
+      // ever happens, always converge on the same one (lowest id) instead of
+      // whatever order the API happens to return, so status writes don't
+      // silently split across two fields.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const field = matches.sort((a: any, b: any) => (a.id < b.id ? -1 : 1))[0]
+      const indices = indicesFrom(field.type_config?.options ?? [])
+      return indices ? { fieldId: field.id, ...indices } : null
+    } catch {
+      return null
+    }
+  }
+
+  const existing = await findExisting()
+  if (existing) return existing
+
+  try {
+    const res = await fetch(`${BASE_URL}/list/${listId}/field`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Client Status',
+        type: 'drop_down',
+        type_config: { options: [{ name: 'Active' }, { name: 'Archived' }] },
+      }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      const indices = indicesFrom(data.type_config?.options ?? [])
+      if (indices) return { fieldId: data.id, ...indices }
+    }
+  } catch {
+    // fall through to the lookup below -- another concurrent call may have
+    // created it, or ClickUp may just need a moment (see comment below).
+  }
+
+  // Either the create response didn't come back with usable option data yet
+  // (confirmed live: ClickUp needs a moment before a brand-new field is
+  // fully readable) or a concurrent call created it first -- look it up
+  // fresh instead of leaving this client with no status at all.
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  return findExisting()
+}
+
+// Sets a Client Profile task's Client Status field to Active or Archived,
+// creating the field on its List the first time it's needed. When that
+// first creation just happened, setting a value on it right away can 404 --
+// confirmed live, ClickUp needs a moment before a brand-new field is usable
+// -- so this retries once after a short delay rather than silently leaving
+// an agency's very first client with a blank status.
+export async function setClientStatus(
+  profilesListId: string,
+  profileTaskId: string,
+  archived: boolean
+): Promise<boolean> {
+  const field = await ensureClientStatusField(profilesListId)
+  if (!field) return false
+  const value = archived ? field.archivedIndex : field.activeIndex
+  for (const delayMs of [0, 1500, 4000]) {
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
+    if (await setTaskCustomField(profileTaskId, field.fieldId, value)) return true
+  }
+  return false
 }
 
 // Sets one Custom Field's value on an existing task.

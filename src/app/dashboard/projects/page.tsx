@@ -69,7 +69,7 @@ export default async function ProjectsPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const tasks = await listProjectTasksForAgency()
+  const { tasks, failedAccountNames } = await listProjectTasksForAgency()
   const byName = (a: ProjectTask, b: ProjectTask) =>
     a.accountName.localeCompare(b.accountName) || a.name.localeCompare(b.name)
 
@@ -79,12 +79,22 @@ export default async function ProjectsPage() {
   const ongoing = tasks.filter((t) => t.status === 'ongoing').sort(byName)
 
   const nothingYet =
-    scoping.length === 0 && inProgress.length === 0 && queue.length === 0 && ongoing.length === 0
+    failedAccountNames.length === 0 &&
+    scoping.length === 0 &&
+    inProgress.length === 0 &&
+    queue.length === 0 &&
+    ongoing.length === 0
 
   return (
     <div>
       <h1 className="text-3xl font-semibold text-gray-900">Projects</h1>
       <p className="mt-1 text-sm text-gray-500">Every project task across your accounts.</p>
+
+      {failedAccountNames.length > 0 && (
+        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          Couldn&apos;t load projects for {failedAccountNames.join(', ')} right now — try refreshing.
+        </p>
+      )}
 
       {nothingYet && (
         <div className="mt-6 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">

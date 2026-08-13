@@ -42,10 +42,20 @@ export default async function ClientProfilePage({
   if (!account) redirect('/dashboard/clients')
 
   // Files live as attachments on the Client Profile task in ClickUp -- read
-  // straight from there rather than a local copy.
+  // straight from there rather than a local copy. Both ClickUp calls now
+  // throw on a real failure instead of quietly returning empty (see
+  // clickup.ts) -- caught here so a transient hiccup doesn't take down the
+  // whole client profile page, but tracked so the Projects section can say
+  // so instead of looking identical to "this client has no projects."
+  let projectsFailed = false
   const [projectTasks, profileTask] = await Promise.all([
-    account.clickup_list_id ? listTaskSummariesForAccount(account.clickup_list_id) : [],
-    account.clickup_profile_task_id ? getTask(account.clickup_profile_task_id) : null,
+    account.clickup_list_id
+      ? listTaskSummariesForAccount(account.clickup_list_id).catch(() => {
+          projectsFailed = true
+          return []
+        })
+      : [],
+    account.clickup_profile_task_id ? getTask(account.clickup_profile_task_id).catch(() => null) : null,
   ])
   const files = profileTask?.attachments ?? []
 
@@ -132,7 +142,11 @@ export default async function ClientProfilePage({
         <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
           Projects{projectTasks.length > 0 ? ` (${projectTasks.length})` : ''}
         </p>
-        {projectTasks.length === 0 ? (
+        {projectsFailed ? (
+          <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            Couldn&apos;t load projects right now — try refreshing.
+          </p>
+        ) : projectTasks.length === 0 ? (
           <p className="mt-4 text-sm text-gray-500">No projects yet for this client.</p>
         ) : (
           <div className="mt-4 space-y-3">

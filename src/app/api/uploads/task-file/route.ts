@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getTaskListId, postAttachmentComment, uploadTaskAttachment } from '@/lib/clickup'
 
 // Uploads a file straight onto a project task in ClickUp, attributed to the
@@ -38,8 +39,19 @@ export async function POST(req: NextRequest) {
   const attachment = await uploadTaskAttachment(taskId, file, file.name)
   if (!attachment) return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
 
-  const authorName = (user.user_metadata as { full_name?: string })?.full_name
-  await postAttachmentComment(taskId, authorName || user.email || 'Client', attachment.id)
+  // Dropped BEFORE posting so the notification webhook can recognize this
+  // as the platform posting on behalf of this specific user -- see
+  // platform_comment_markers -- and skip notifying them of their own
+  // upload.
+  const admin = createAdminClient()
+  await admin.from('platform_comment_markers').insert({ task_id: taskId, user_id: user.id })
 
-  return NextResponse.json({ file: attachment })
+  // The file itself is already safely attached above -- this comment is
+  // just the "uploaded by X" attribution trail, so its failure shouldn't
+  // fail the upload. It used to be silently discarded either way; now it's
+  // at least reported back instead of implying it always succeeds.
+  const authorName = (user.user_metadata as { full_name?: string })?.full_name
+  const commentPosted = await postAttachmentComment(taskId, authorName || user.email || 'Client', attachment.id)
+
+  return NextResponse.json({ file: attachment, commentPosted })
 }

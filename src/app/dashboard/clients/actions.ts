@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createList, createTask } from '@/lib/clickup'
+import { createList, createTask, setClientStatus } from '@/lib/clickup'
 
 // Creates a Client Profile -- no payment involved. If the agency's ClickUp
 // Folder is connected, this also auto-provisions the client's own ClickUp
@@ -40,6 +40,22 @@ export async function createClientProfile(formData: FormData) {
     .single()
   if (!agency) redirect('/dashboard/clients')
 
+  // Idempotency: a double-click or resubmit on this form would otherwise
+  // create a second empty account + ClickUp List every time, since nothing
+  // unique exists yet to check against (no payment/subscription involved
+  // here at all). Reuse a very recently created account with the same name
+  // for this agency instead of creating another one.
+  const { data: recent } = await admin
+    .from('accounts')
+    .select('id')
+    .eq('agency_id', agency.id)
+    .ilike('name', name)
+    .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (recent) redirect(`/dashboard/clients/${recent.id}`)
+
   const { data: account } = await admin
     .from('accounts')
     .insert({ agency_id: agency.id, name, website: website || null })
@@ -69,6 +85,7 @@ export async function createClientProfile(formData: FormData) {
       })
       if (profileTask) {
         await admin.from('accounts').update({ clickup_profile_task_id: profileTask.id }).eq('id', account.id)
+        await setClientStatus(profilesListId, profileTask.id, false)
       }
     }
   }
@@ -105,11 +122,13 @@ export async function updateClientProfile(formData: FormData) {
   revalidatePath('/dashboard/clients')
 }
 
-// Archiving is a Supabase-only flag -- nothing in ClickUp is touched (their
-// List, tasks, and files all stay exactly where they are), so restoring a
-// client just un-hides everything again. Archived clients still work fine on
-// direct links; they're only hidden from the main My Clients list and from
-// the account picker when starting a new service request.
+// Archiving only flips a Supabase flag -- the client's ClickUp List, tasks,
+// and files all stay exactly where they are, so restoring un-hides
+// everything again instantly. The one ClickUp-visible trace is the Client
+// Status field on their Client Profile reference task, kept in sync here so
+// the team can see active/archived without leaving ClickUp. Archived
+// clients still work fine on direct links; they're only hidden from the
+// main My Clients list and from the account picker when starting new work.
 export async function setAccountArchived(formData: FormData) {
   const supabase = await createClient()
   const {
@@ -123,13 +142,24 @@ export async function setAccountArchived(formData: FormData) {
 
   const { data: owned } = await supabase
     .from('accounts')
-    .select('id')
+    .select('id, agency_id, clickup_profile_task_id')
     .eq('id', accountId)
     .maybeSingle()
   if (!owned) redirect('/dashboard/clients')
 
   const admin = createAdminClient()
   await admin.from('accounts').update({ archived }).eq('id', accountId)
+
+  if (owned.clickup_profile_task_id) {
+    const { data: agency } = await admin
+      .from('agencies')
+      .select('clickup_profiles_list_id')
+      .eq('id', owned.agency_id)
+      .maybeSingle()
+    if (agency?.clickup_profiles_list_id) {
+      await setClientStatus(agency.clickup_profiles_list_id, owned.clickup_profile_task_id, archived)
+    }
+  }
 
   revalidatePath(`/dashboard/clients/${accountId}`)
   revalidatePath('/dashboard/clients')

@@ -122,22 +122,45 @@ export async function addServiceAndCheckout(formData: FormData) {
       returnTo = `/dashboard/accounts/${accountId}`
     } else {
       if (!name) redirect('/dashboard')
-      const { data: account } = await admin
-        .from('accounts')
-        .insert({ agency_id: agency.id, name, website: website || null })
-        .select('id')
-        .single()
-      if (!account) redirect('/dashboard')
-      accountId = account.id
-      accountName = name
-      returnTo = `/dashboard/accounts/${accountId}`
 
-      // Same auto-provisioning a Client Profile gets -- without this, a
-      // managed service bought for a brand-new client would have nowhere in
-      // ClickUp for its post-payment intake task to land.
-      if (agency.clickup_folder_id) {
-        const list = await createList(agency.clickup_folder_id, name)
-        if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
+      // Idempotency: this runs BEFORE Stripe Checkout, so unlike the
+      // post-payment onboarding flow there's no already-claimed
+      // subscription to check against yet -- a double-click or resubmit
+      // here would otherwise create a second empty account + ClickUp List
+      // every single time. Reuse a very recently created account with the
+      // same name for this agency instead of creating another one.
+      const { data: recent } = await admin
+        .from('accounts')
+        .select('id, name')
+        .eq('agency_id', agency.id)
+        .ilike('name', name)
+        .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (recent) {
+        accountId = recent.id
+        accountName = recent.name
+        returnTo = `/dashboard/accounts/${accountId}`
+      } else {
+        const { data: account } = await admin
+          .from('accounts')
+          .insert({ agency_id: agency.id, name, website: website || null })
+          .select('id')
+          .single()
+        if (!account) redirect('/dashboard')
+        accountId = account.id
+        accountName = name
+        returnTo = `/dashboard/accounts/${accountId}`
+
+        // Same auto-provisioning a Client Profile gets -- without this, a
+        // managed service bought for a brand-new client would have nowhere in
+        // ClickUp for its post-payment intake task to land.
+        if (agency.clickup_folder_id) {
+          const list = await createList(agency.clickup_folder_id, name)
+          if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
+        }
       }
     }
   }

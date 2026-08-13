@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { stripe } from '@/lib/stripe'
 import { upsertSubscriptionFromStripe } from '@/lib/subscriptions'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { forfeitAgencyCredits, grantAgencyCredits } from '@/lib/credits'
+import { forfeitAgencyCredits, grantAgencyCredits, grantTopupCredits } from '@/lib/credits'
 import { provisionSignupAgency } from '@/lib/signup'
 
 // Only these billing reasons grant credits -- 'subscription_create' is the
@@ -45,8 +45,19 @@ export async function POST(request: NextRequest) {
       // single cancellation/downgrade -- but if the agency now has zero
       // active subscriptions at all, the whole relationship ended, and per
       // policy any remaining credits are forfeited.
+      //
+      // Only treat THIS subscription as having genuinely ended if its
+      // status is a terminal one -- 'past_due'/'unpaid'/'incomplete' are
+      // Stripe's recoverable dunning states (Smart Retries can run for
+      // weeks before an actual cancellation), and this handler fires on
+      // every customer.subscription.updated, including the moment a card
+      // first fails. Forfeiting here on a recoverable status would zero an
+      // agency's credits the instant their card fails, with no way back
+      // even if they fix it the same day -- confirmed this was possible
+      // before this fix, via code review ahead of Digitac/Pixan going live.
+      const relationshipMayHaveEnded = sub.status === 'canceled' || sub.status === 'incomplete_expired'
       const agencyId = sub.metadata?.agency_id
-      if (agencyId) {
+      if (agencyId && relationshipMayHaveEnded) {
         const admin = createAdminClient()
         const { count } = await admin
           .from('subscriptions')
@@ -71,20 +82,13 @@ export async function POST(request: NextRequest) {
       }
 
       if (session.mode === 'payment' && session.metadata?.credit_topup === 'true') {
-        const agencyId = session.metadata.agency_id
-        const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-          expand: ['data.price.product'],
-        })
-        const product = lineItems.data[0]?.price?.product as Stripe.Product | undefined
-        const credits = Number(product?.metadata?.credit_amount ?? 0)
-
-        if (agencyId && credits > 0) {
-          await grantAgencyCredits(agencyId, credits, 'topup', {
-            stripeEventId: event.id,
-            note: `${product?.name ?? 'Credit top-up'} purchase`,
-          })
-          revalidatePath('/dashboard', 'layout')
-        }
+        // Primary path for a credit top-up purchase -- the checkout return
+        // page also calls this (idempotent, on the session id) as a
+        // fallback in case this event is delayed or never delivered. Before
+        // this fallback existed, a lost webhook here meant real money
+        // charged with no credits ever granted and nothing to catch it.
+        await grantTopupCredits(session)
+        revalidatePath('/dashboard', 'layout')
       }
     }
 

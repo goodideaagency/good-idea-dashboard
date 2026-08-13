@@ -50,7 +50,7 @@ export async function buyCreditTopup(formData: FormData) {
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { agency_id: agency.id, agency_name: agency.name, credit_topup: 'true' },
-    success_url: `${origin}/dashboard/credits?topup_session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${origin}/dashboard/credits/topup-return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/dashboard/credits`,
   })
 

@@ -37,8 +37,16 @@ export async function POST(req: NextRequest) {
   const attachment = await uploadTaskAttachment(account.clickup_profile_task_id, file, file.name)
   if (!attachment) return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
 
+  // The file itself is already safely attached above -- this comment is
+  // just the "uploaded by X" attribution trail, so its failure shouldn't
+  // fail the upload. It used to be silently discarded either way; now it's
+  // at least reported back instead of implying it always succeeds.
   const authorName = (user.user_metadata as { full_name?: string })?.full_name
-  await postAttachmentComment(account.clickup_profile_task_id, authorName || user.email || 'Client', attachment.id)
+  const commentPosted = await postAttachmentComment(
+    account.clickup_profile_task_id,
+    authorName || user.email || 'Client',
+    attachment.id
+  )
 
-  return NextResponse.json({ file: attachment })
+  return NextResponse.json({ file: attachment, commentPosted })
 }

@@ -12,10 +12,11 @@ import {
   updateTaskMarkdownDescription,
   linkTasks,
   uploadTaskAttachment,
+  deleteTask,
 } from '@/lib/clickup'
 import { getServiceByKey, CREDIT_COST_FIELD_ID } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
-import { getAgencyCreditBalance, spendAgencyCredits } from '@/lib/credits'
+import { getAgencyCreditBalance, spendAgencyCredits, grantAgencyCredits } from '@/lib/credits'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFieldValue(formData: FormData, fieldId: string, type: string): any {
@@ -112,9 +113,21 @@ export async function submitServiceRequest(formData: FormData) {
         markdownDescription: summary,
       })
 
+  // Stop here, before any credits move, if ClickUp couldn't even create the
+  // internal tracking task -- otherwise (confirmed via code review) a
+  // transient ClickUp failure would silently fall through to charging
+  // credits and creating the client-facing task anyway, leaving your team
+  // with zero record of the request anywhere while the agency gets billed.
+  if (!internalTask) {
+    redirect(
+      `/dashboard/request/${serviceKey}?error=` +
+        encodeURIComponent('Could not submit your request. Please try again.')
+    )
+  }
+
   // Template-based creation ignores custom_fields/description in the create
   // call, so set each afterward.
-  if (service.templateId && internalTask) {
+  if (service.templateId) {
     for (const cf of customFields) {
       await setTaskCustomField(internalTask.id, cf.id, cf.value)
     }
@@ -122,7 +135,7 @@ export async function submitServiceRequest(formData: FormData) {
   }
 
   const attachment = formData.get('attachment')
-  if (internalTask && attachment instanceof File && attachment.size > 0) {
+  if (attachment instanceof File && attachment.size > 0) {
     await uploadTaskAttachment(internalTask.id, attachment, attachment.name)
   }
 
@@ -133,10 +146,15 @@ export async function submitServiceRequest(formData: FormData) {
   // Atomic, so it's still the real gate against a race with another tab.
   const spent = await spendAgencyCredits(agencyId, service.baseCreditCost, 'service_request', {
     accountId,
-    clickupTaskId: internalTask?.id,
+    clickupTaskId: internalTask.id,
     note: service.label,
   })
   if (!spent) {
+    // A genuine race with the up-front balance check above (another
+    // request spent the balance in between) -- the internal task now
+    // exists for a request that was never actually paid for, so clean it
+    // up rather than leaving your team a stray, uncharged task.
+    await deleteTask(internalTask.id)
     redirect(
       `/dashboard/request/${serviceKey}?error=` +
         encodeURIComponent("You don't have enough credits for this service.")
@@ -151,28 +169,35 @@ export async function submitServiceRequest(formData: FormData) {
   })
 
   if (!clientTask) {
+    // Credits were already spent and the internal task already exists --
+    // refund rather than leaving the agency charged for a request with no
+    // client-facing task. The internal task is left in place (not deleted)
+    // so your team can still see something was attempted and follow up.
+    await grantAgencyCredits(agencyId, service.baseCreditCost, 'manual', {
+      clickupTaskId: internalTask.id,
+      note: `Refund: ${service.label} request failed after the client task couldn't be created`,
+    })
+    revalidatePath('/dashboard', 'layout')
     redirect(
       `/dashboard/request/${serviceKey}?error=` +
         encodeURIComponent('Could not submit your request. Please try again.')
     )
   }
 
-  if (internalTask) {
-    await linkTasks(clientTask.id, internalTask.id)
+  await linkTasks(clientTask.id, internalTask.id)
 
-    // So the Internal Ops ClickUp webhook can trace a later "Credit Cost"
-    // field edit on this task back to the agency/account to charge or
-    // refund (see reconcileTaskCost).
-    const admin = createAdminClient()
-    await admin.from('service_requests').insert({
-      agency_id: agencyId,
-      account_id: accountId,
-      clickup_task_id: internalTask.id,
-      clickup_client_task_id: clientTask.id,
-      service_key: service.key,
-      base_credit_cost: service.baseCreditCost,
-    })
-  }
+  // So the Internal Ops ClickUp webhook can trace a later "Credit Cost"
+  // field edit on this task back to the agency/account to charge or
+  // refund (see reconcileTaskCost).
+  const admin = createAdminClient()
+  await admin.from('service_requests').insert({
+    agency_id: agencyId,
+    account_id: accountId,
+    clickup_task_id: internalTask.id,
+    clickup_client_task_id: clientTask.id,
+    service_key: service.key,
+    base_credit_cost: service.baseCreditCost,
+  })
 
   redirect(`/dashboard/projects/${clientTask.id}`)
 }

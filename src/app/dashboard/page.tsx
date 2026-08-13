@@ -71,7 +71,7 @@ export default async function DashboardPage() {
   const agencyName =
     (membership?.agencies as { name?: string } | null)?.name ?? 'your agency'
 
-  const tasks = await listProjectTasksForAgency()
+  const { tasks, failedAccountNames } = await listProjectTasksForAgency()
   const ongoing = tasks.filter((t) => t.status === 'ongoing')
   const inProgress = tasks.filter((t) => IN_PROGRESS.has(t.status))
   const reviewing = tasks.filter((t) => REVIEWING.has(t.status))
@@ -80,6 +80,12 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 className="text-4xl font-semibold text-gray-900">Welcome back, {agencyName}!</h1>
+
+      {failedAccountNames.length > 0 && (
+        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          Couldn&apos;t load projects for {failedAccountNames.join(', ')} right now — try refreshing.
+        </p>
+      )}
 
       <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">
         Ongoing Services

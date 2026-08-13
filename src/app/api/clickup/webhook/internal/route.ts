@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { verifyClickUpSignature } from '@/lib/clickup-webhooks'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { reconcileTaskCost } from '@/lib/credits'
+import { postTaskComment } from '@/lib/clickup'
 import { CREDIT_COST_FIELD_ID } from '@/lib/service-catalog'
 
 // Receives task changes for the "Internal Ops" Space -- a separate endpoint
@@ -43,7 +44,16 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
   if (!request) return NextResponse.json({ ok: true })
 
-  await reconcileTaskCost(request.agency_id, request.account_id, taskId, newTotalCost)
+  const result = await reconcileTaskCost(request.agency_id, request.account_id, taskId, newTotalCost)
+  if (!result.ok) {
+    // No admin alerting channel exists for this today -- your team is
+    // already working in ClickUp, so put it where they'll actually see it.
+    await postTaskComment(
+      taskId,
+      'Good Idea Billing',
+      `⚠️ Could not charge ${result.shortfall} credit${result.shortfall === 1 ? '' : 's'} for this cost increase -- the agency's credit balance is insufficient. The ledger is now under-reflecting this task's real cost until it's resolved (top up their credits, or lower the Credit Cost field).`
+    )
+  }
   revalidatePath('/dashboard', 'layout')
   return NextResponse.json({ ok: true })
 }
