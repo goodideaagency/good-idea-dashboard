@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTaskListId, postTaskCommentWithAttachment, uploadTaskAttachment } from '@/lib/clickup'
+import { fileTooLarge, MAX_UPLOAD_BYTES } from '@/lib/upload-limits'
 
 // Uploads a file straight onto a project task in ClickUp, attributed to the
 // uploader via a bold-name comment (see clients/[id] uploads for the same
@@ -23,6 +24,12 @@ export async function POST(req: NextRequest) {
   const file = form.get('file')
   if (!accountId || !taskId || !(file instanceof File)) {
     return NextResponse.json({ error: 'Missing account_id, task_id, or file' }, { status: 400 })
+  }
+  if (fileTooLarge(file)) {
+    return NextResponse.json(
+      { error: `Files must be under ${MAX_UPLOAD_BYTES / 1024 / 1024}MB.` },
+      { status: 413 }
+    )
   }
 
   const { data: account } = await supabase

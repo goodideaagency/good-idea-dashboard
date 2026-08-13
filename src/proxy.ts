@@ -28,9 +28,21 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // A transient Supabase outage/network blip here used to throw uncaught --
+  // since this middleware runs on every route (including public ones), that
+  // would 500 out the entire site for its duration, not just auth-dependent
+  // pages. Fail toward "logged out" instead: protected paths still safely
+  // redirect to login (no access granted on an auth check we couldn't
+  // complete), but public pages keep working.
+  let user = null
+  try {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser()
+    user = authUser
+  } catch {
+    user = null
+  }
 
   const path = request.nextUrl.pathname
   // /admin/login must stay reachable while logged out.

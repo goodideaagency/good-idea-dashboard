@@ -86,9 +86,23 @@ function summarize(category: string, items: BatchItem[]) {
   return items.length === 1 ? `Update on ${taskName}` : `${items.length} updates on ${taskName}`
 }
 
+// title/detail both embed unescaped user input (a ClickUp comment's raw
+// text, or a task name) -- interpolating them straight into HTML let anyone
+// who can post a comment inject arbitrary markup into every teammate's
+// notification email (phishing links, tracking pixels, spoofed content).
+// Confirmed exploitable via code review ahead of onboarding real users.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function renderEmailHtml(title: string, items: BatchItem[], url: string) {
-  const lines = items.map((i) => `<li>${i.detail}</li>`).join('')
-  return `<p><strong>${title}</strong></p><ul>${lines}</ul><p><a href="${url}">View in dashboard</a></p>`
+  const lines = items.map((i) => `<li>${escapeHtml(i.detail)}</li>`).join('')
+  return `<p><strong>${escapeHtml(title)}</strong></p><ul>${lines}</ul><p><a href="${escapeHtml(url)}">View in dashboard</a></p>`
 }
 
 // Called by the scheduled QStash callback once a batch's window has closed.

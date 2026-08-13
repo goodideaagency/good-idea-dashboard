@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fileTooLarge, MAX_UPLOAD_BYTES } from '@/lib/upload-limits'
 
 // Uploads a client's logo (already cropped to a square client-side) to
 // Storage and points accounts.logo_url at it. Ownership is verified with
@@ -18,6 +19,12 @@ export async function POST(req: NextRequest) {
   const file = form.get('file')
   if (!accountId || !(file instanceof File)) {
     return NextResponse.json({ error: 'Missing account_id or file' }, { status: 400 })
+  }
+  if (fileTooLarge(file)) {
+    return NextResponse.json(
+      { error: `Files must be under ${MAX_UPLOAD_BYTES / 1024 / 1024}MB.` },
+      { status: 413 }
+    )
   }
 
   const { data: owned } = await supabase.from('accounts').select('id').eq('id', accountId).maybeSingle()

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { postAttachmentComment, uploadTaskAttachment } from '@/lib/clickup'
+import { fileTooLarge, MAX_UPLOAD_BYTES } from '@/lib/upload-limits'
 
 // Uploads a brand file/document straight onto the account's "Client Profile"
 // task in ClickUp -- see clickup.ts: there's no delete-attachment endpoint,
@@ -17,6 +18,12 @@ export async function POST(req: NextRequest) {
   const file = form.get('file')
   if (!accountId || !(file instanceof File)) {
     return NextResponse.json({ error: 'Missing account_id or file' }, { status: 400 })
+  }
+  if (fileTooLarge(file)) {
+    return NextResponse.json(
+      { error: `Files must be under ${MAX_UPLOAD_BYTES / 1024 / 1024}MB.` },
+      { status: 413 }
+    )
   }
 
   // RLS ensures this only returns a row if the account belongs to the
