@@ -79,10 +79,26 @@ export async function POST(req: NextRequest) {
   const taskId = payload.task_id as string | undefined
   const historyItems = payload.history_items ?? []
   const kind = resolveKind(event, historyItems)
-  // TEMP DIAGNOSTIC (2026-08-13): confirming which deliveries actually reach
-  // recordChange -- remove once root-caused.
-  console.log('[client-webhook]', JSON.stringify({ event, kind, historyItemFields: historyItems.map((h: { field?: string }) => h.field) }))
   if (!taskId || !kind) return NextResponse.json({ ok: true })
+
+  const admin = createAdminClient()
+
+  // Confirmed live: this route can process the same change twice --
+  // exactly one taskCommentPosted delivery was ever logged for a given
+  // comment, yet it still produced two identical notification-batch items
+  // a fraction of a second apart, so the double-execution happens somewhere
+  // between ClickUp's edge and this handler completing (possibly a
+  // Vercel-level retry racing the original invocation) rather than ClickUp
+  // literally sending two HTTP requests. Same fix as the internal webhook
+  // either way: dedup on this history item's own stable id before doing
+  // anything else, using the same clickup_webhook_history_items table.
+  const historyItemId = historyItems[0]?.id
+  if (historyItemId) {
+    const { error: dupError } = await admin
+      .from('clickup_webhook_history_items')
+      .insert({ history_item_id: String(historyItemId) })
+    if (dupError && dupError.code === '23505') return NextResponse.json({ ok: true })
+  }
 
   try {
     // null here means the task genuinely doesn't exist (a real 404, e.g. it
@@ -93,7 +109,6 @@ export async function POST(req: NextRequest) {
     const task = await getTask(taskId)
     if (!task) return NextResponse.json({ ok: true })
 
-    const admin = createAdminClient()
     const { data: account } = await admin
       .from('accounts')
       .select('id')
