@@ -49,9 +49,14 @@ export async function submitManagedServiceIntake(formData: FormData) {
   // RLS ensures this only returns the account if it belongs to the caller's agency.
   const { data: account } = await supabase
     .from('accounts')
-    .select('id, name, clickup_list_id')
+    .select('id, name, clickup_list_id, clickup_profile_task_id')
     .eq('id', accountId)
-    .maybeSingle<{ id: string; name: string; clickup_list_id: string | null }>()
+    .maybeSingle<{
+      id: string
+      name: string
+      clickup_list_id: string | null
+      clickup_profile_task_id: string | null
+    }>()
   if (!account?.clickup_list_id) {
     redirect(
       `/dashboard/onboarding/${priceId}?account_id=${accountId}&error=` +
@@ -108,6 +113,11 @@ export async function submitManagedServiceIntake(formData: FormData) {
 
   if (internalTask) {
     await linkTasks(clientTask.id, internalTask.id)
+    // So the team can jump straight to this client's contact info/files from
+    // the internal task instead of searching for the right Client Profile.
+    if (account.clickup_profile_task_id) {
+      await linkTasks(internalTask.id, account.clickup_profile_task_id)
+    }
   }
 
   redirect(`/dashboard/projects/${clientTask.id}`)
