@@ -154,7 +154,15 @@ export default async function AdminPage({
         <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {visibleAgencies.map((agency) => {
             const agencyAccounts = accountsByAgency.get(agency.id) ?? []
-            const agencyMrrCents = calculateMrrCents(subsByAgency.get(agency.id) ?? [])
+            const agencySubs = subsByAgency.get(agency.id) ?? []
+            // A client profile can carry more than one active subscription
+            // (e.g. a managed White Label PPC plan AND a Programmatic plan
+            // on the same account) -- counting profiles undercounts actual
+            // workload. This counts every active subscription, managed or
+            // credit-granting alike, which is what the admin team actually
+            // needs to gauge.
+            const agencyActiveSubs = agencySubs.filter((s) => s.status && ACTIVE.has(s.status))
+            const agencyMrrCents = calculateMrrCents(agencySubs)
             return (
               <div
                 key={agency.id}
@@ -164,12 +172,16 @@ export default async function AdminPage({
                   <p className="text-lg font-semibold text-gray-900">{agency.name}</p>
                   <div className="mt-1 flex items-center justify-between text-sm text-gray-600">
                     <span>
-                      {agencyAccounts.length} account{agencyAccounts.length === 1 ? '' : 's'}
+                      {agencyActiveSubs.length} active subscription
+                      {agencyActiveSubs.length === 1 ? '' : 's'}
                     </span>
                     <span className="font-medium text-gray-900">
                       {formatMoney(agencyMrrCents)}/mo
                     </span>
                   </div>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {agencyAccounts.length} client{agencyAccounts.length === 1 ? '' : 's'}
+                  </p>
                 </div>
 
                 <Link
