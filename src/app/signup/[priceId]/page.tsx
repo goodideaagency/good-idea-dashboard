@@ -35,9 +35,9 @@ export default async function SignupInfoPage({
           <h1 className="text-2xl font-semibold text-gray-900">Create your agency</h1>
           <Link
             href="/signup"
-            className="border border-[#e7e2d3] px-3 py-1.5 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+            className="text-xs text-gray-700 hover:text-gray-900 font-mono uppercase tracking-wide"
           >
-            ← Change plan
+            Change plan
           </Link>
         </div>
         <p className="mt-1 text-sm text-gray-500">{plan.label}</p>

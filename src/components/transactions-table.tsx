@@ -34,22 +34,27 @@ export function TransactionsTable({
   accountFor,
   agencyFor,
   emptyText = 'No transactions yet.',
+  bare = false,
 }: {
   txns: Txn[]
   accountFor?: (subId: string | null) => string | undefined
   agencyFor?: (subId: string | null) => string | undefined
   emptyText?: string
+  // Skips this component's own spacing/border/background -- for embedding
+  // inside a container that already provides them (see AccountServices),
+  // so a service + its transactions read as one card instead of two.
+  bare?: boolean
 }) {
   if (txns.length === 0) {
     return (
-      <div className="mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
+      <div className={bare ? 'p-8 text-center' : 'mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center'}>
         <p className="text-sm text-gray-500">{emptyText}</p>
       </div>
     )
   }
 
   return (
-    <div className="mt-4 overflow-x-auto bg-white ring-1 ring-[#ece7d8]">
+    <div className={bare ? 'overflow-x-auto' : 'mt-4 overflow-x-auto bg-white ring-1 ring-[#ece7d8]'}>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs uppercase tracking-wide text-gray-400">

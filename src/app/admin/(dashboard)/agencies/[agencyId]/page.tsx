@@ -95,9 +95,9 @@ export default async function AgencyDetailPage({
         </div>
         <Link
           href="/admin"
-          className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+          className="text-sm text-gray-700 hover:text-gray-900 font-mono uppercase tracking-wide"
         >
-          ← Back to agencies
+          Back to agencies
         </Link>
       </div>
 
@@ -148,7 +148,7 @@ export default async function AgencyDetailPage({
         Attach existing Stripe subscription
       </p>
       <p className="mt-1 text-sm text-gray-500">
-        For a subscription a client added directly in Stripe, outside the platform's checkout.
+        For a subscription a client added directly in Stripe, outside the platform&apos;s checkout.
       </p>
       <form action={attachExternalSubscription} className="mt-3 max-w-2xl space-y-4 bg-white p-5 ring-1 ring-[#ece7d8]">
         <input type="hidden" name="agency_id" value={agency.id} />

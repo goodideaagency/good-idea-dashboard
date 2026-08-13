@@ -37,7 +37,7 @@ export default async function NotificationsPage() {
           <p className="text-sm text-gray-500">No notifications yet.</p>
         </div>
       ) : (
-        <div className="mt-8 max-w-2xl space-y-2">
+        <div className="mt-8 space-y-2">
           {list.map((n) => (
             <Link
               key={n.id}

@@ -78,7 +78,7 @@ export async function submitManagedServiceIntake(formData: FormData) {
   // piece it together from ClickUp's cramped, truncated Custom Fields sidebar.
   const summary = formatIntakeSummary(fields, service.sections, customFields)
 
-  const internalTaskName = `${service.label} — ${account.name}`
+  const internalTaskName = `${service.label} — ${account.name} - Internal`
   const internalTask = service.templateId
     ? await createTaskFromTemplate(service.internalListId, service.templateId, internalTaskName)
     : await createTask(service.internalListId, internalTaskName, {

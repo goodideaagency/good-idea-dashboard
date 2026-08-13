@@ -44,6 +44,7 @@ export function ProfileMenu({
           >
             Transactions
           </Link>
+          <p className="px-3 pt-3 pb-1 text-xs font-mono uppercase tracking-wide text-gray-400">Account</p>
           <Link
             href="/dashboard/settings"
             onClick={() => setOpen(false)}

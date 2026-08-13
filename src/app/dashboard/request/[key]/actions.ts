@@ -105,7 +105,7 @@ export async function submitServiceRequest(formData: FormData) {
       ? formatIntakeSummary(fields, service.sections, customFields)
       : genericDescription || '_No description provided._'
 
-  const internalTaskName = `${service.label} — ${account.name}`
+  const internalTaskName = `${service.label} — ${account.name} - Internal`
   const internalTask = service.templateId
     ? await createTaskFromTemplate(service.internalListId, service.templateId, internalTaskName)
     : await createTask(service.internalListId, internalTaskName, {

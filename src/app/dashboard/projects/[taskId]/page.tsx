@@ -62,9 +62,9 @@ export default async function ProjectDetailPage({
         </div>
         <Link
           href="/dashboard/projects"
-          className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+          className="text-sm text-gray-700 hover:text-gray-900 font-mono uppercase tracking-wide"
         >
-          ← Back to projects
+          Back to projects
         </Link>
       </div>
 

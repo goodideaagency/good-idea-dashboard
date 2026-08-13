@@ -52,8 +52,8 @@ export function AccountServices({
           : null
 
         return (
-          <div key={sub.stripe_subscription_id ?? i}>
-            <div className="bg-white p-5 ring-1 ring-[#ece7d8]">
+          <div key={sub.stripe_subscription_id ?? i} className="bg-white ring-1 ring-[#ece7d8]">
+            <div className="p-5">
               <p className="text-sm text-gray-500">Service</p>
               <div className="mt-1 flex items-center gap-3">
                 <span className="font-medium text-gray-900">{sub.product_name ?? '—'}</span>
@@ -74,10 +74,9 @@ export function AccountServices({
               )}
             </div>
 
-            <p className="mt-4 text-sm font-medium text-gray-700">
-              {sub.product_name ?? 'Service'} — transaction history
-            </p>
-            <TransactionsTable txns={sub.txns} emptyText="No transactions for this service yet." />
+            <div className="border-t border-[#ece7d8]">
+              <TransactionsTable txns={sub.txns} emptyText="No transactions for this service yet." bare />
+            </div>
           </div>
         )
       })}
