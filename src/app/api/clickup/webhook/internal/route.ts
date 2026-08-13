@@ -17,11 +17,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid signature' }, { status: 401 })
   }
 
+  // TEMP DIAGNOSTIC (2026-08-13): a real Credit Cost field edit isn't
+  // reconciling credits -- logging the raw payload to see whether our
+  // history_items parsing actually matches what ClickUp sends. Remove once
+  // root-caused.
+  console.log('[internal-webhook] raw body', rawBody)
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let payload: any
   try {
     payload = JSON.parse(rawBody)
   } catch {
+    console.log('[internal-webhook] JSON parse failed')
     return NextResponse.json({ ok: true })
   }
 
@@ -31,9 +38,11 @@ export async function POST(req: NextRequest) {
   const costChange = historyItems.find(
     (h) => h.field === 'custom_field' && h.field_id === CREDIT_COST_FIELD_ID
   )
+  console.log('[internal-webhook] taskId', taskId, 'costChange', JSON.stringify(costChange))
   if (!taskId || !costChange) return NextResponse.json({ ok: true })
 
   const newTotalCost = Number(costChange.after ?? costChange.value ?? 0)
+  console.log('[internal-webhook] newTotalCost', newTotalCost)
   if (!Number.isFinite(newTotalCost) || newTotalCost < 0) return NextResponse.json({ ok: true })
 
   const admin = createAdminClient()
@@ -42,6 +51,7 @@ export async function POST(req: NextRequest) {
     .select('agency_id, account_id')
     .eq('clickup_task_id', taskId)
     .maybeSingle()
+  console.log('[internal-webhook] service_request match', JSON.stringify(request))
   if (!request) return NextResponse.json({ ok: true })
 
   const result = await reconcileTaskCost(request.agency_id, request.account_id, taskId, newTotalCost)
