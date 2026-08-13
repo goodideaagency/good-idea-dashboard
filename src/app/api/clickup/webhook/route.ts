@@ -75,6 +75,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // TEMP DIAGNOSTIC (2026-08-13): a real comment on a client task is
+  // producing 2 notification entries -- same duplicate-delivery pattern
+  // confirmed on the internal webhook. Logging the raw payload to confirm
+  // history_items shape (specifically each item's own id) before adding a
+  // dedup guard here too. Remove once root-caused.
+  console.log('[client-webhook] raw body', rawBody)
+
   const event = payload.event as string
   const taskId = payload.task_id as string | undefined
   const historyItems = payload.history_items ?? []
