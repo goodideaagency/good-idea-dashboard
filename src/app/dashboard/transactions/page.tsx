@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { listInvoicesForCustomer } from '@/lib/transactions'
+import { listInvoicesForCustomers } from '@/lib/transactions'
 import { TransactionsTable } from '@/components/transactions-table'
 
 export default async function TransactionsPage() {
@@ -26,7 +26,7 @@ export default async function TransactionsPage() {
   // Map each subscription to its account name so we can label rows.
   const { data: subs } = await supabase
     .from('subscriptions')
-    .select('stripe_subscription_id, accounts(name)')
+    .select('stripe_subscription_id, stripe_customer_id, accounts(name)')
   const nameBySub = new Map<string, string | undefined>()
   for (const s of subs ?? []) {
     nameBySub.set(
@@ -35,9 +35,18 @@ export default async function TransactionsPage() {
     )
   }
 
-  const txns = agency?.stripe_customer_id
-    ? await listInvoicesForCustomer(agency.stripe_customer_id)
-    : []
+  // "One Stripe customer per agency" only holds once an agency has bought
+  // something through this platform's own checkout -- an agency migrated
+  // from elsewhere can have its subscriptions scattered across several
+  // legacy Stripe customers, and agencies.stripe_customer_id may still be
+  // unset. Pull every customer id its subscriptions actually reference, not
+  // just the one on the agency row, so history isn't silently missing.
+  const customerIds = [
+    ...(agency?.stripe_customer_id ? [agency.stripe_customer_id] : []),
+    ...(subs ?? []).map((s) => s.stripe_customer_id as string | null).filter((id): id is string => Boolean(id)),
+  ]
+
+  const txns = await listInvoicesForCustomers(customerIds)
 
   return (
     <div>

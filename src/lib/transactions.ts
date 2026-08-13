@@ -41,6 +41,23 @@ export async function listInvoicesForCustomer(customerId: string, limit = 100): 
   }
 }
 
+// Every transaction across several Stripe customer ids, merged and sorted
+// newest-first. "One Stripe customer per agency" only holds for agencies
+// that bought everything through this platform's own checkout -- an agency
+// migrated from elsewhere can have its subscriptions scattered across
+// several legacy Stripe customers (one per original end-client), and its
+// own agencies.stripe_customer_id may not even be set yet if it's never
+// bought anything new here. Confirmed live: Digitac/Pixan's Transactions
+// page was showing completely empty for exactly this reason. Dedupes by
+// invoice id in case the same customer id is passed more than once.
+export async function listInvoicesForCustomers(customerIds: string[], limit = 100): Promise<Txn[]> {
+  const uniqueIds = [...new Set(customerIds.filter(Boolean))]
+  const results = await Promise.all(uniqueIds.map((id) => listInvoicesForCustomer(id, limit)))
+  const byId = new Map<string, Txn>()
+  for (const txn of results.flat()) byId.set(txn.id, txn)
+  return [...byId.values()].sort((a, b) => b.date.localeCompare(a.date))
+}
+
 // Transactions for a single subscription. Same failure handling as above.
 export async function listInvoicesForSubscription(
   subscriptionId: string,
