@@ -41,32 +41,50 @@ export async function POST(request: NextRequest) {
       const sub = event.data.object as Stripe.Subscription
       await upsertSubscriptionFromStripe(sub)
 
-      // Credits are agency-scoped and keep their normal lifecycle on a
-      // single cancellation/downgrade -- but if the agency now has zero
-      // active subscriptions at all, the whole relationship ended, and per
-      // policy any remaining credits are forfeited.
-      //
-      // Only treat THIS subscription as having genuinely ended if its
-      // status is a terminal one -- 'past_due'/'unpaid'/'incomplete' are
-      // Stripe's recoverable dunning states (Smart Retries can run for
-      // weeks before an actual cancellation), and this handler fires on
-      // every customer.subscription.updated, including the moment a card
-      // first fails. Forfeiting here on a recoverable status would zero an
-      // agency's credits the instant their card fails, with no way back
-      // even if they fix it the same day -- confirmed this was possible
-      // before this fix, via code review ahead of Digitac/Pixan going live.
-      const relationshipMayHaveEnded = sub.status === 'canceled' || sub.status === 'incomplete_expired'
       const agencyId = sub.metadata?.agency_id
-      if (agencyId && relationshipMayHaveEnded) {
+      if (agencyId) {
         const admin = createAdminClient()
-        const { count } = await admin
-          .from('subscriptions')
-          .select('id', { count: 'exact', head: true })
-          .eq('agency_id', agencyId)
-          .in('status', ['active', 'trialing'])
-        if ((count ?? 0) === 0) {
-          await forfeitAgencyCredits(agencyId)
-          revalidatePath('/dashboard', 'layout')
+
+        // Coming back from a full cancellation should be as frictionless as
+        // possible -- the moment this agency has a real subscription again,
+        // un-hide them from the active agencies list automatically instead
+        // of requiring an admin to notice and manually restore them. Only
+        // touches agencies currently archived, so it's a no-op otherwise.
+        if (sub.status === 'active' || sub.status === 'trialing') {
+          await admin.from('agencies').update({ archived: false }).eq('id', agencyId).eq('archived', true)
+        }
+
+        // Credits are agency-scoped and keep their normal lifecycle on a
+        // single cancellation/downgrade -- but if the agency now has zero
+        // active subscriptions at all, the whole relationship ended: any
+        // remaining credits are forfeited, and the agency is archived so it
+        // stops inflating the active-agency counts/MRR (their login access
+        // is untouched -- they can still sign in to an empty dashboard and
+        // add a new service whenever they come back).
+        //
+        // Only treat THIS subscription as having genuinely ended if its
+        // status is a terminal one -- 'past_due'/'unpaid'/'incomplete' are
+        // Stripe's recoverable dunning states (Smart Retries can run for
+        // weeks before an actual cancellation), and this handler fires on
+        // every customer.subscription.updated, including the moment a card
+        // first fails. Forfeiting/archiving here on a recoverable status
+        // would end the relationship the instant a card fails, with no way
+        // back even if they fix it the same day -- confirmed this was
+        // possible before this fix, via code review ahead of Digitac/Pixan
+        // going live.
+        const relationshipMayHaveEnded = sub.status === 'canceled' || sub.status === 'incomplete_expired'
+        if (relationshipMayHaveEnded) {
+          const { count } = await admin
+            .from('subscriptions')
+            .select('id', { count: 'exact', head: true })
+            .eq('agency_id', agencyId)
+            .in('status', ['active', 'trialing'])
+          if ((count ?? 0) === 0) {
+            await forfeitAgencyCredits(agencyId)
+            await admin.from('agencies').update({ archived: true }).eq('id', agencyId)
+            revalidatePath('/dashboard', 'layout')
+            revalidatePath('/admin')
+          }
         }
       }
     }
