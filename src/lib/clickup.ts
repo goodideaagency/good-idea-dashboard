@@ -9,8 +9,7 @@ function headers() {
 // flattening to a single string.
 export type CommentSegment =
   | { type: 'text'; text: string; bold?: boolean }
-  | { type: 'image'; url: string; alt: string }
-  | { type: 'file'; url: string; name: string }
+  | { type: 'file'; id: string; url: string; name: string; extension: string | null; thumbnail: string | null }
 
 export type ClickUpComment = {
   id: string
@@ -74,15 +73,30 @@ function normalizeTask(t: any): ClickUpTaskSummary {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeCommentSegments(commentArr: any[]): CommentSegment[] {
   return (commentArr ?? []).map((seg) => {
+    // ClickUp's own editor can embed a directly-pasted image via a distinct
+    // 'image' segment shape (no id/extension, just a url) -- everything
+    // uploaded through this platform's own upload flow comes back as
+    // 'attachment' instead, image or not (confirmed live), which is why
+    // that branch below carries the real extension/thumbnail fields.
     if (seg.type === 'image' && seg.image?.url) {
       return {
-        type: 'image' as const,
-        url: seg.image.thumbnail_large ?? seg.image.url,
-        alt: seg.text ?? 'Image',
+        type: 'file' as const,
+        id: seg.image.url,
+        url: seg.image.url,
+        name: seg.text ?? 'Image',
+        extension: null,
+        thumbnail: seg.image.thumbnail_large ?? seg.image.url,
       }
     }
     if (seg.type === 'attachment' && seg.attachment?.url) {
-      return { type: 'file' as const, url: seg.attachment.url, name: seg.text ?? 'Attachment' }
+      return {
+        type: 'file' as const,
+        id: seg.attachment.id,
+        url: seg.attachment.url,
+        name: seg.text ?? seg.attachment.title ?? 'Attachment',
+        extension: seg.attachment.extension ?? null,
+        thumbnail: seg.attachment.thumbnail_medium ?? seg.attachment.thumbnail_small ?? null,
+      }
     }
     return { type: 'text' as const, text: seg.text ?? '', bold: seg.attributes?.bold === true }
   })

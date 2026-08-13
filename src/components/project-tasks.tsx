@@ -32,32 +32,49 @@ function resolveDisplayComment(c: ClickUpComment): { author: string; segments: C
   return { author: c.author, segments: c.segments }
 }
 
-// Renders a comment's segments in order: plain text (newlines preserved),
-// inline images, and file attachments as a small link.
+// Consecutive file segments (e.g. several attachments dropped on one
+// ClickUp comment) render as one tile row instead of a tile per line --
+// same grouping a plain array->rows layout would need for any file grid.
+type SegmentGroup =
+  | { kind: 'files'; segments: Extract<CommentSegment, { type: 'file' }>[] }
+  | { kind: 'text'; segment: Extract<CommentSegment, { type: 'text' }> }
+
+function groupSegments(segments: CommentSegment[]): SegmentGroup[] {
+  const groups: SegmentGroup[] = []
+  for (const seg of segments) {
+    if (seg.type === 'file') {
+      const last = groups[groups.length - 1]
+      if (last?.kind === 'files') last.segments.push(seg)
+      else groups.push({ kind: 'files', segments: [seg] })
+    } else {
+      groups.push({ kind: 'text', segment: seg })
+    }
+  }
+  return groups
+}
+
+// Renders a comment's segments in order: plain text (newlines preserved)
+// and file/image attachments as the same standard-size thumbnail tiles used
+// everywhere else in the app.
 function CommentBody({ segments }: { segments: CommentSegment[] }) {
   return (
     <div className="mt-0.5 space-y-2 text-gray-600">
-      {segments.map((seg, i) => {
-        if (seg.type === 'image') {
-          // eslint-disable-next-line @next/next/no-img-element
-          return <img key={i} src={seg.url} alt={seg.alt} className="max-h-64 max-w-full" />
-        }
-        if (seg.type === 'file') {
+      {groupSegments(segments).map((group, i) => {
+        if (group.kind === 'files') {
           return (
-            <a
-              key={i}
-              href={seg.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-gray-900 underline underline-offset-2 hover:text-gray-600"
-            >
-              {seg.name}
-            </a>
+            <div key={i} className="flex flex-wrap gap-3">
+              {group.segments.map((seg) => (
+                <FileTile
+                  key={seg.id}
+                  file={{ id: seg.id, title: seg.name, url: seg.url, extension: seg.extension, thumbnail: seg.thumbnail }}
+                />
+              ))}
+            </div>
           )
         }
         return (
           <span key={i} className="whitespace-pre-wrap">
-            {seg.text}
+            {group.segment.text}
           </span>
         )
       })}
