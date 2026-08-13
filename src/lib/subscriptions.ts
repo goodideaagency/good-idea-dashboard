@@ -73,6 +73,30 @@ export async function upsertSubscriptionFromStripe(sub: Stripe.Subscription) {
   return { productName, onboardingUrl }
 }
 
+// Which of these price ids are credit-granting plans (Agency Support etc.),
+// per the same `credits_per_cycle` product metadata used everywhere else
+// (see addServiceAndCheckout, plans.ts) -- NOT the same thing as checking
+// against the current MANAGED_SERVICES catalog, which only lists prices
+// still open for new purchases and is missing several real, still-active
+// legacy/discounted managed prices from migrated agencies. A subscription
+// tied to an account is a real managed service unless this explicitly
+// marks its price as a credits plan.
+export async function getCreditsPriceIds(priceIds: string[]): Promise<Set<string>> {
+  const unique = [...new Set(priceIds)]
+  const results = await Promise.all(
+    unique.map(async (priceId) => {
+      try {
+        const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
+        const product = price.product as Stripe.Product
+        return Number(product?.metadata?.credits_per_cycle ?? 0) > 0 ? priceId : null
+      } catch {
+        return null
+      }
+    })
+  )
+  return new Set(results.filter((id): id is string => id !== null))
+}
+
 // Schedules a subscription to cancel at the end of the current billing period
 // (cancelAtPeriodEnd = true), or undoes that (false). The client keeps service
 // until the paid-through date either way; nothing is charged or refunded now.

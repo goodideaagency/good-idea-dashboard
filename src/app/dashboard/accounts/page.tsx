@@ -2,6 +2,9 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { StatusBadges, planLabel } from '@/components/status-badge'
+import { getCreditsPriceIds } from '@/lib/subscriptions'
+
+const ACTIVE = new Set(['active', 'trialing'])
 
 type AccountRow = {
   id: string
@@ -11,6 +14,7 @@ type AccountRow = {
     status: string | null
     product_name: string | null
     current_period_end: string | null
+    stripe_price_id: string | null
   }[]
 }
 
@@ -27,12 +31,30 @@ export default async function AccountsPage() {
   const { data: accounts } = await supabase
     .from('accounts')
     .select(
-      'id, name, website, subscriptions(status, product_name, current_period_end)'
+      'id, name, website, subscriptions(status, product_name, current_period_end, stripe_price_id)'
     )
     .order('created_at', { ascending: true })
     .returns<AccountRow[]>()
 
-  const accountList = accounts ?? []
+  // This page is "Managed Accounts" specifically -- a client profile whose
+  // only subscription is a credit plan (Agency Support etc., not tied to
+  // any one client in spirit even when a row's account_id happens to be
+  // set, e.g. from hand-migrated data) shouldn't appear here, and neither
+  // should one with no currently-active managed subscription at all.
+  // Confirmed live: several real migrated accounts had exactly this shape.
+  const allPriceIds = (accounts ?? []).flatMap((a) =>
+    (a.subscriptions ?? []).map((s) => s.stripe_price_id).filter((id): id is string => !!id)
+  )
+  const creditsPriceIds = await getCreditsPriceIds(allPriceIds)
+
+  const accountList = (accounts ?? [])
+    .map((a) => ({
+      ...a,
+      subscriptions: (a.subscriptions ?? []).filter(
+        (s) => !s.stripe_price_id || !creditsPriceIds.has(s.stripe_price_id)
+      ),
+    }))
+    .filter((a) => a.subscriptions.some((s) => s.status && ACTIVE.has(s.status)))
 
   return (
     <div>
@@ -62,7 +84,7 @@ export default async function AccountsPage() {
       {accountList.length === 0 ? (
         <div className="mt-4 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
           <p className="text-sm text-gray-500">
-            No accounts yet.{' '}
+            No active managed accounts yet.{' '}
             <Link href="/dashboard/request" className="underline underline-offset-2">
               Add your first one.
             </Link>
