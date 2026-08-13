@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 import { createList } from '@/lib/clickup'
 import { ensureAgencyStripeCustomer } from '@/lib/subscriptions'
+import { getActiveCreditSubscription } from '@/lib/credits'
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
 
 // Ends an admin's impersonation session and logs them back into their own
@@ -100,6 +101,13 @@ export async function addServiceAndCheckout(formData: FormData) {
     .eq('id', membership.agency_id)
     .single()
   if (!agency) redirect('/dashboard')
+
+  // Agencies may only ever have one active credit plan at a time -- upgrade,
+  // downgrade, or cancel through /dashboard/credits/change-plan instead of
+  // starting a second one. Managed services have no such limit.
+  if (isCreditPlan && (await getActiveCreditSubscription(agency.id))) {
+    redirect('/dashboard/credits')
+  }
 
   const customerId = await ensureAgencyStripeCustomer(admin, agency, user.email ?? undefined)
 

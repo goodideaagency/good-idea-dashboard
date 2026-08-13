@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
-  agencyIsCreditEligible,
+  getActiveCreditSubscription,
   getAgencyCreditBalance,
   getAgencyCreditHistory,
   listCreditTopupProducts,
@@ -16,6 +16,10 @@ function money(cents: number, currency: string) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(
     cents / 100
   )
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -71,13 +75,14 @@ export default async function CreditsPage() {
   const agencyId = membership.agency_id as string
   const agencyName = (membership.agencies as { name?: string } | null)?.name ?? ''
 
-  const [balance, eligible, history, topups, allPlans] = await Promise.all([
+  const [balance, activeSub, history, topups, allPlans] = await Promise.all([
     getAgencyCreditBalance(agencyId),
-    agencyIsCreditEligible(agencyId),
+    getActiveCreditSubscription(agencyId),
     getAgencyCreditHistory(agencyId),
     listCreditTopupProducts(),
     listPlansForAgency(agencyName),
   ])
+  const eligible = activeSub !== null
   const creditPlans = allPlans.filter((p) => p.creditsPerCycle > 0)
 
   return (
@@ -89,13 +94,36 @@ export default async function CreditsPage() {
       </p>
 
       <div className="mt-6 max-w-4xl">
-        <div className="bg-[#f9f5f1] p-6 ring-1 ring-[#ece7d8]">
-          <p className="text-xs uppercase tracking-wide text-gray-400">Current balance</p>
-          <p className="mt-1 font-mono text-4xl font-semibold text-gray-900">{balance}</p>
-          <p className="mt-1 text-sm text-gray-500">credits available</p>
+        <div className={`grid grid-cols-1 gap-4 ${activeSub ? 'sm:grid-cols-2' : ''}`}>
+          <div className="bg-[#f9f5f1] p-6 ring-1 ring-[#ece7d8]">
+            <p className="text-xs uppercase tracking-wide text-gray-400">Current balance</p>
+            <p className="mt-1 font-mono text-4xl font-semibold text-gray-900">{balance}</p>
+            <p className="mt-1 text-sm text-gray-500">credits available</p>
+          </div>
+
+          {activeSub && (
+            <div className="bg-[#f9f5f1] p-6 ring-1 ring-[#ece7d8]">
+              <p className="text-xs uppercase tracking-wide text-gray-400">Your plan</p>
+              <p className="mt-1 text-xl font-semibold text-gray-900">
+                {activeSub.productName ?? 'Agency Support'}
+              </p>
+              <p className="mt-1 text-sm text-gray-500">
+                {activeSub.currentPeriodEnd &&
+                  (activeSub.cancelAtPeriodEnd
+                    ? `Active until ${fmtDate(activeSub.currentPeriodEnd)}`
+                    : `Renews ${fmtDate(activeSub.currentPeriodEnd)}`)}
+              </p>
+              <Link
+                href="/dashboard/credits/change-plan"
+                className="mt-4 inline-block border border-[#e7e2d3] px-4 py-2 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
+              >
+                Change plan
+              </Link>
+            </div>
+          )}
         </div>
 
-        {creditPlans.length > 0 && (
+        {!activeSub && creditPlans.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold text-gray-900">Agency Support Plans</h2>
             <p className="mt-1 text-sm text-gray-500">Monthly plans that grant credits every cycle.</p>

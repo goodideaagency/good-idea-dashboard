@@ -111,3 +111,22 @@ export async function setSubscriptionCancelation(
   await upsertSubscriptionFromStripe(sub)
   return sub
 }
+
+// Swaps a subscription onto a different price -- upgrade/downgrade, same
+// subscription (so it keeps its billing cycle rather than starting a new
+// one). Stripe prorates and invoices the difference immediately by default;
+// that proration invoice's billing_reason is subscription_update, which the
+// Stripe webhook's GRANT_SOURCE map deliberately doesn't cover -- so
+// switching a credits plan doesn't itself grant/adjust credits, the new
+// credits_per_cycle just takes effect at the next normal renewal.
+export async function changeSubscriptionPrice(subscriptionId: string, newPriceId: string) {
+  const current = await stripe.subscriptions.retrieve(subscriptionId)
+  const itemId = current.items.data[0]?.id
+  if (!itemId) throw new Error(`Subscription ${subscriptionId} has no item to swap`)
+  const sub = await stripe.subscriptions.update(subscriptionId, {
+    items: [{ id: itemId, price: newPriceId }],
+    proration_behavior: 'create_prorations',
+  })
+  await upsertSubscriptionFromStripe(sub)
+  return sub
+}

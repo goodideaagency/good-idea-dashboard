@@ -1,12 +1,71 @@
 'use server'
 
 import { headers } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import type Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
-import { ensureAgencyStripeCustomer } from '@/lib/subscriptions'
-import { agencyIsCreditEligible } from '@/lib/credits'
+import {
+  ensureAgencyStripeCustomer,
+  setSubscriptionCancelation,
+  changeSubscriptionPrice,
+} from '@/lib/subscriptions'
+import { agencyIsCreditEligible, getActiveCreditSubscription } from '@/lib/credits'
+
+// Both actions below resolve the caller's own active credit subscription
+// server-side from their agency membership -- neither trusts a
+// client-submitted subscription id for WHICH subscription to act on, so
+// there's no way to act on another agency's plan even by guessing an id.
+async function requireOwnActiveCreditSubscription() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: membership } = await supabase
+    .from('agency_users')
+    .select('agency_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!membership) redirect('/dashboard/credits')
+
+  const activeSub = await getActiveCreditSubscription(membership.agency_id as string)
+  if (!activeSub) redirect('/dashboard/credits')
+  return activeSub
+}
+
+// Cancels (schedules cancel_at_period_end) or restarts the caller's own
+// credit plan -- same cancel-at-period-end behavior as a managed service
+// subscription (see setSubscriptionCancelation).
+export async function updateCreditPlanCancelation(formData: FormData) {
+  const activeSub = await requireOwnActiveCreditSubscription()
+  const intent = String(formData.get('intent') || '')
+  await setSubscriptionCancelation(activeSub.stripeSubscriptionId, intent === 'cancel')
+  revalidatePath('/dashboard/credits')
+  revalidatePath('/dashboard/credits/change-plan')
+}
+
+// Upgrades/downgrades the caller's own credit plan to a different
+// credit-granting price -- rejects anything that isn't actually one (an
+// arbitrary/managed-service price id submitted by a tampered request).
+export async function switchCreditPlan(formData: FormData) {
+  const activeSub = await requireOwnActiveCreditSubscription()
+
+  const newPriceId = String(formData.get('price_id') || '').trim()
+  if (!newPriceId || newPriceId === activeSub.priceId) redirect('/dashboard/credits/change-plan')
+
+  const price = await stripe.prices.retrieve(newPriceId, { expand: ['product'] }).catch(() => null)
+  const product = price?.product as Stripe.Product | undefined
+  const isCreditPlan = Number(product?.metadata?.credits_per_cycle ?? 0) > 0
+  if (!isCreditPlan) redirect('/dashboard/credits/change-plan')
+
+  await changeSubscriptionPrice(activeSub.stripeSubscriptionId, newPriceId)
+  revalidatePath('/dashboard/credits')
+  redirect('/dashboard/credits')
+}
 
 // Starts a one-time Checkout Session for a credit top-up product. Credits
 // are granted by the Stripe webhook (checkout.session.completed) once

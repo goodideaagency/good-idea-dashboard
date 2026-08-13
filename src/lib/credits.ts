@@ -1,32 +1,55 @@
 import type Stripe from 'stripe'
 import { stripe } from './stripe'
 import { createAdminClient } from './supabase/admin'
+import { getCreditsPriceIds } from './subscriptions'
+
+export type ActiveCreditSubscription = {
+  id: string
+  stripeSubscriptionId: string
+  productName: string | null
+  priceId: string
+  currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+}
+
+// An agency's current credit-granting plan, if any -- at most one is ever
+// meant to be active (see addServiceAndCheckout, which rejects starting a
+// second one). If more than one somehow is, the most recently created wins;
+// the rest are still real Stripe subscriptions and should be resolved in
+// Stripe directly rather than silently ignored by the app.
+export async function getActiveCreditSubscription(agencyId: string): Promise<ActiveCreditSubscription | null> {
+  const admin = createAdminClient()
+  const { data: subs } = await admin
+    .from('subscriptions')
+    .select('id, stripe_subscription_id, stripe_price_id, product_name, current_period_end, cancel_at_period_end')
+    .eq('agency_id', agencyId)
+    .in('status', ['active', 'trialing'])
+    .order('created_at', { ascending: false })
+  const rows = (subs ?? []).filter(
+    (s): s is typeof s & { stripe_price_id: string; stripe_subscription_id: string } =>
+      !!s.stripe_price_id && !!s.stripe_subscription_id
+  )
+  if (rows.length === 0) return null
+
+  const creditsPriceIds = await getCreditsPriceIds(rows.map((s) => s.stripe_price_id))
+  const match = rows.find((s) => creditsPriceIds.has(s.stripe_price_id))
+  if (!match) return null
+
+  return {
+    id: match.id,
+    stripeSubscriptionId: match.stripe_subscription_id,
+    productName: match.product_name,
+    priceId: match.stripe_price_id,
+    currentPeriodEnd: match.current_period_end,
+    cancelAtPeriodEnd: match.cancel_at_period_end,
+  }
+}
 
 // Whether an agency is allowed to buy credit top-ups: at least one active
 // (or trialing) subscription whose product is a credit-granting plan
 // (credits_per_cycle metadata > 0).
 export async function agencyIsCreditEligible(agencyId: string): Promise<boolean> {
-  const admin = createAdminClient()
-  const { data: subs } = await admin
-    .from('subscriptions')
-    .select('stripe_price_id')
-    .eq('agency_id', agencyId)
-    .in('status', ['active', 'trialing'])
-  const priceIds = [...new Set((subs ?? []).map((s) => s.stripe_price_id as string).filter(Boolean))]
-  if (priceIds.length === 0) return false
-
-  for (const priceId of priceIds) {
-    try {
-      const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
-      const product = price.product as import('stripe').default.Product
-      if (Number(product?.metadata?.credits_per_cycle ?? 0) > 0) return true
-    } catch {
-      // A subscription row can reference a price that no longer resolves
-      // (deleted, or from a different Stripe mode than the app's key) --
-      // skip it rather than failing the whole dashboard load.
-    }
-  }
-  return false
+  return (await getActiveCreditSubscription(agencyId)) !== null
 }
 
 // Balance is always derived, never stored -- sum of what's left in every
