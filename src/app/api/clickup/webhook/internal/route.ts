@@ -41,6 +41,22 @@ export async function POST(req: NextRequest) {
   if (!Number.isFinite(newTotalCost) || newTotalCost < 0) return NextResponse.json({ ok: true })
 
   const admin = createAdminClient()
+
+  // ClickUp sometimes delivers the same event twice (confirmed live) -- each
+  // history item has its own stable id, so recording it first and bailing
+  // on a conflict stops a duplicate delivery from reconciling (and
+  // charging) the same cost change twice.
+  if (costChange.id) {
+    const { error: dupError } = await admin
+      .from('clickup_webhook_history_items')
+      .insert({ history_item_id: String(costChange.id) })
+    // 23505 = unique_violation -- already processed this exact event, skip.
+    // Any other error is a real (rare) DB hiccup, not a duplicate -- fall
+    // through and still attempt reconciliation rather than silently
+    // dropping a genuine cost change.
+    if (dupError && dupError.code === '23505') return NextResponse.json({ ok: true })
+  }
+
   const { data: request } = await admin
     .from('service_requests')
     .select('agency_id, account_id')
