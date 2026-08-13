@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getTask } from '@/lib/clickup'
+import { getAlreadyChargedForTask } from '@/lib/credits'
 import { ProjectTasks } from '@/components/project-tasks'
 import { postProjectComment } from '../actions'
 
@@ -37,6 +39,20 @@ export default async function ProjectDetailPage({
     .maybeSingle<{ id: string; name: string }>()
   if (!account) redirect('/dashboard/projects')
 
+  // Credit cost only applies to tasks opened via a credit-funded service
+  // request -- the "Credit Cost" field itself lives on the internal task,
+  // never the client-facing one the customer is looking at here, so this
+  // has to go through service_requests to find that internal task id.
+  const admin = createAdminClient()
+  const { data: serviceRequest } = await admin
+    .from('service_requests')
+    .select('clickup_task_id')
+    .eq('clickup_client_task_id', taskId)
+    .maybeSingle<{ clickup_task_id: string }>()
+  const creditCosts = serviceRequest
+    ? { [task.id]: await getAlreadyChargedForTask(serviceRequest.clickup_task_id) }
+    : undefined
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -57,7 +73,12 @@ export default async function ProjectDetailPage({
       )}
 
       <div className="mt-8">
-        <ProjectTasks tasks={[task]} accountId={account.id} commentAction={postProjectComment} />
+        <ProjectTasks
+          tasks={[task]}
+          accountId={account.id}
+          commentAction={postProjectComment}
+          creditCosts={creditCosts}
+        />
       </div>
     </div>
   )

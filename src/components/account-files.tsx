@@ -1,12 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-
-type FileRow = {
-  id: string
-  title: string
-  url: string
-}
+import { FileTile, type FileRow } from './file-tile'
 
 export function AccountFiles({
   accountId,
@@ -50,20 +45,11 @@ export function AccountFiles({
       {files.length === 0 ? (
         <p className="text-sm text-gray-400">No files yet.</p>
       ) : (
-        <ul className="space-y-2">
+        <div className="flex flex-wrap gap-4">
           {files.map((f) => (
-            <li key={f.id} className="bg-white p-3 ring-1 ring-[#ece7d8]">
-              <a
-                href={f.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block truncate text-sm text-gray-900 underline underline-offset-2 hover:text-gray-600"
-              >
-                {f.title}
-              </a>
-            </li>
+            <FileTile key={f.id} file={f} />
           ))}
-        </ul>
+        </div>
       )}
 
       {canUpload ? (
@@ -92,7 +78,7 @@ export function AccountFiles({
           />
           {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
           <p className="mt-1 text-xs text-gray-400">
-            Files are attached directly to this client's profile in ClickUp. To remove one, ask
+            Files are attached directly to this client&apos;s profile in ClickUp. To remove one, ask
             your Good Idea team to delete it there.
           </p>
         </div>

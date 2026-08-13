@@ -1,7 +1,9 @@
+import ReactMarkdown from 'react-markdown'
 import type { ClickUpComment, ClickUpTask, CommentSegment } from '@/lib/clickup'
 import { ClickUpStatusPill } from './clickup-status-pill'
 import { TaskFileUpload } from './task-file-upload'
 import { SubmitButton } from './submit-button'
+import { FileTile } from './file-tile'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -72,10 +74,15 @@ export function ProjectTasks({
   tasks,
   accountId,
   commentAction,
+  creditCosts,
 }: {
   tasks: ClickUpTask[]
   accountId?: string
   commentAction?: (formData: FormData) => void | Promise<void>
+  // Net credit cost per task (after any reconciliation), keyed by task id --
+  // only present for tasks that were opened as a credit-funded service
+  // request. See getAlreadyChargedForTask in credits.ts for how it's derived.
+  creditCosts?: Record<string, number>
 }) {
   if (tasks.length === 0) {
     return (
@@ -97,7 +104,12 @@ export function ProjectTasks({
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+              {task.assignees.length > 0 && <span>Owner: {task.assignees.join(', ')}</span>}
               {task.dueDate && <span>Due {fmtDate(task.dueDate)}</span>}
+              {task.dateCreated && <span>Added {fmtDate(task.dateCreated)}</span>}
+              {creditCosts?.[task.id] !== undefined && (
+                <span className="font-medium text-gray-900">{creditCosts[task.id]} credits</span>
+              )}
               {/* Admin-only -- agency view never shows the underlying ClickUp
                   link (commentAction is only ever passed on the agency side). */}
               {!commentAction && (
@@ -112,23 +124,20 @@ export function ProjectTasks({
               )}
             </div>
 
+            {task.description && (
+              <div className="mt-3 space-y-2 border-t border-[#f0ecdf] pt-3 text-sm text-gray-700 [&_a]:text-gray-900 [&_a]:underline [&_a]:underline-offset-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5">
+                <ReactMarkdown>{task.description}</ReactMarkdown>
+              </div>
+            )}
+
             {task.attachments.length > 0 && (
               <div className="mt-4 border-t border-[#f0ecdf] pt-3">
                 <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Files</p>
-                <ul className="mt-2 space-y-1">
+                <div className="mt-2 flex flex-wrap gap-4">
                   {task.attachments.map((a) => (
-                    <li key={a.id}>
-                      <a
-                        href={a.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-gray-900 underline underline-offset-2 hover:text-gray-600"
-                      >
-                        {a.title}
-                      </a>
-                    </li>
+                    <FileTile key={a.id} file={a} />
                   ))}
-                </ul>
+                </div>
               </div>
             )}
           </div>

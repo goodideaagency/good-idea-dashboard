@@ -23,6 +23,12 @@ export type ClickUpAttachment = {
   id: string
   title: string
   url: string
+  extension: string | null
+  // A ready-to-use image thumbnail URL -- ClickUp only populates this for
+  // image attachments (null for everything else, e.g. PDFs, docs), which is
+  // exactly the signal used to decide "show a thumbnail" vs "show a file
+  // type icon."
+  thumbnail: string | null
 }
 
 // The lightweight fields needed for list/table views (Dashboard, Projects) —
@@ -33,6 +39,7 @@ export type ClickUpTaskSummary = {
   status: string
   statusColor: string
   dueDate: string | null // ISO
+  dateCreated: string | null // ISO
   url: string
   listId: string
   assignees: string[]
@@ -41,6 +48,11 @@ export type ClickUpTaskSummary = {
 export type ClickUpTask = ClickUpTaskSummary & {
   comments: ClickUpComment[]
   attachments: ClickUpAttachment[]
+  // Markdown-flavored text, as authored in ClickUp's own rich text editor
+  // (bold, links, lists, etc.) -- null/empty when the task has no
+  // description at all, which callers should treat as "nothing to show"
+  // rather than rendering an empty block.
+  description: string | null
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +63,7 @@ function normalizeTask(t: any): ClickUpTaskSummary {
     status: t.status?.status ?? 'unknown',
     statusColor: t.status?.color ?? '#87909e',
     dueDate: t.due_date ? new Date(Number(t.due_date)).toISOString() : null,
+    dateCreated: t.date_created ? new Date(Number(t.date_created)).toISOString() : null,
     url: t.url,
     listId: t.list?.id ?? '',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,6 +107,8 @@ function normalizeAttachments(attachments: any[]): ClickUpAttachment[] {
     id: a.id,
     title: a.title ?? a.name ?? 'Attachment',
     url: a.url,
+    extension: a.extension ?? null,
+    thumbnail: a.thumbnail_medium ?? a.thumbnail_small ?? null,
   }))
 }
 
@@ -129,7 +144,12 @@ export async function listTasksForAccount(listId: string): Promise<ClickUpTask[]
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null),
       ])
-      return { ...base, comments, attachments: normalizeAttachments(detail?.attachments) }
+      return {
+        ...base,
+        comments,
+        attachments: normalizeAttachments(detail?.attachments),
+        description: detail?.description || null,
+      }
     })
   )
 }
@@ -155,7 +175,12 @@ export async function getTask(taskId: string): Promise<ClickUpTask | null> {
     if (res.ok) {
       const data = await res.json()
       const comments = await fetchTaskComments(taskId)
-      return { ...normalizeTask(data), comments, attachments: normalizeAttachments(data.attachments) }
+      return {
+        ...normalizeTask(data),
+        comments,
+        attachments: normalizeAttachments(data.attachments),
+        description: data.description || null,
+      }
     }
   }
   throw new Error(`ClickUp getTask ${taskId} failed after retry`)
@@ -532,7 +557,13 @@ export async function uploadTaskAttachment(
     })
     if (!res.ok) return null
     const data = await res.json()
-    return { id: data.id, title: data.title ?? data.name ?? filename, url: data.url }
+    return {
+      id: data.id,
+      title: data.title ?? data.name ?? filename,
+      url: data.url,
+      extension: data.extension ?? null,
+      thumbnail: data.thumbnail_medium ?? data.thumbnail_small ?? null,
+    }
   } catch {
     return null
   }
