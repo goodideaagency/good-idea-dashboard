@@ -73,11 +73,20 @@ export default async function AdminPage({
     accountsByAgency.set(a.agency_id, list)
   }
 
-  const activeCount = subs.filter((s) => s.status && ACTIVE.has(s.status)).length
-  const pendingCancellationCount = subs.filter(
+  // The summary tiles must only reflect agencies actually shown below --
+  // otherwise an archived (or admin-owned) agency's subscriptions still
+  // inflated the totals while being invisible in the agency list itself,
+  // with no way to tell why the numbers didn't add up. Confirmed live: the
+  // archived "Test Agency (delete me)" alone was contributing 3 phantom
+  // active subscriptions and $1,000+ of phantom MRR.
+  const visibleAgencyIds = new Set(visibleAgencies.map((a) => a.id))
+  const visibleSubs = subs.filter((s) => s.agency_id && visibleAgencyIds.has(s.agency_id))
+
+  const activeCount = visibleSubs.filter((s) => s.status && ACTIVE.has(s.status)).length
+  const pendingCancellationCount = visibleSubs.filter(
     (s) => s.status && ACTIVE.has(s.status) && s.cancel_at_period_end
   ).length
-  const totalMrrCents = calculateMrrCents(subs)
+  const totalMrrCents = calculateMrrCents(visibleSubs)
 
   const subsByAgency = new Map<string, typeof subs>()
   for (const s of subs) {
