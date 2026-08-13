@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { SubmitButton } from '@/components/submit-button'
 
 type Plan = { id: string; label: string }
 type Acct = { id: string; name: string }
@@ -136,9 +137,12 @@ export function AddServiceForm({
         </div>
       )}
 
-      <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+      <SubmitButton
+        pendingText="Redirecting to payment…"
+        className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+      >
         {lockedPlan ? 'Continue to payment' : 'Add & continue to payment'}
-      </button>
+      </SubmitButton>
     </form>
   )
 }

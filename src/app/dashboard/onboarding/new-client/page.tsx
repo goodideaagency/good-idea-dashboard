@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { SubmitButton } from '@/components/submit-button'
 import { completeNewClientSetup } from './actions'
 
 const inputCls =
@@ -46,9 +47,12 @@ export default async function NewClientSetupPage({
             <input id="website" name="website" type="text" placeholder="joesplumbing.com" className={inputCls} />
           </div>
 
-          <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+          <SubmitButton
+            pendingText="Continuing…"
+            className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             Continue
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </div>

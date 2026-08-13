@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { SubmitButton } from '@/components/submit-button'
 import { createClientProfile } from '../actions'
 
 const inputCls =
@@ -9,21 +10,23 @@ const inputCls =
 export default async function NewClientProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; next?: string }>
 }) {
-  const { error } = await searchParams
+  const { error, next } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const backHref = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard/clients'
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold text-gray-900">New client profile</h1>
         <Link
-          href="/dashboard/clients"
+          href={backHref}
           className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
         >
           ← Back
@@ -37,6 +40,7 @@ export default async function NewClientProfilePage({
         {error && <p className="mb-4 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
         <form action={createClientProfile} className="space-y-4">
+          {next && <input type="hidden" name="next" value={next} />}
           <div>
             <label className="block text-sm font-medium text-gray-700" htmlFor="name">
               Client company name
@@ -52,9 +56,12 @@ export default async function NewClientProfilePage({
           <p className="text-xs text-gray-400">
             You can upload a logo and other files once the profile is created.
           </p>
-          <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+          <SubmitButton
+            pendingText="Creating…"
+            className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             Create profile
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </div>

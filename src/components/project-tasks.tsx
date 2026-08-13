@@ -1,6 +1,7 @@
 import type { ClickUpComment, ClickUpTask, CommentSegment } from '@/lib/clickup'
 import { ClickUpStatusPill } from './clickup-status-pill'
 import { TaskFileUpload } from './task-file-upload'
+import { SubmitButton } from './submit-button'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -179,9 +180,12 @@ export function ProjectTasks({
                   placeholder="Write a comment..."
                   className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
                 />
-                <button className="mt-2 bg-[#f7cf4a] px-4 py-1.5 text-sm font-semibold text-black hover:brightness-95">
+                <SubmitButton
+                  pendingText="Posting…"
+                  className="mt-2 bg-[#f7cf4a] px-4 py-1.5 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
                   Post
-                </button>
+                </SubmitButton>
               </form>
             )}
 

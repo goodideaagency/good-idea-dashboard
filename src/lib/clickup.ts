@@ -143,12 +143,22 @@ export async function listTasksForAccount(listId: string): Promise<ClickUpTask[]
 // empty states or bounced users away with no explanation. Callers should
 // catch this and show/report the failure rather than treating it as absence.
 export async function getTask(taskId: string): Promise<ClickUpTask | null> {
-  const res = await fetch(`${BASE_URL}/task/${taskId}`, { headers: headers() })
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error(`ClickUp getTask ${taskId} failed: HTTP ${res.status}`)
-  const data = await res.json()
-  const comments = await fetchTaskComments(taskId)
-  return { ...normalizeTask(data), comments, attachments: normalizeAttachments(data.attachments) }
+  // A common caller pattern is redirecting straight here right after
+  // creating the task -- a brief ClickUp consistency lag or rate-limit
+  // blip at that exact moment used to throw immediately and crash the page
+  // the user just landed on, confirmed live. One quick retry absorbs that
+  // without giving up the real signal (a genuine failure still throws).
+  for (const delayMs of [0, 800]) {
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
+    const res = await fetch(`${BASE_URL}/task/${taskId}`, { headers: headers() })
+    if (res.status === 404) return null
+    if (res.ok) {
+      const data = await res.json()
+      const comments = await fetchTaskComments(taskId)
+      return { ...normalizeTask(data), comments, attachments: normalizeAttachments(data.attachments) }
+    }
+  }
+  throw new Error(`ClickUp getTask ${taskId} failed after retry`)
 }
 
 // Which List a task belongs to — used to verify a client is only ever

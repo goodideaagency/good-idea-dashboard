@@ -21,8 +21,27 @@ export async function createClientProfile(formData: FormData) {
 
   const name = String(formData.get('name') || '').trim()
   const website = String(formData.get('website') || '').trim()
+  // Only ever set by our own pages to a relative in-app path (e.g. back to
+  // the service request form this was opened from) -- reject anything else
+  // so this can't become an open redirect.
+  const rawNext = String(formData.get('next') || '')
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
+  // Where to land once the profile exists: back where the user came from
+  // (with the new account preselected) if we know it, otherwise the
+  // profile's own page like before. Without this, starting a service
+  // request, realizing the client isn't set up yet, and creating them mid-
+  // flow used to strand the user on the profile page with no way back into
+  // the request except starting over from scratch.
+  const destination = (accountId: string) =>
+    next
+      ? `${next}${next.includes('?') ? '&' : '?'}account_id=${accountId}`
+      : `/dashboard/clients/${accountId}`
+
   if (!name) {
-    redirect('/dashboard/clients/new?error=' + encodeURIComponent('Please enter a client name.'))
+    redirect(
+      `/dashboard/clients/new?${next ? `next=${encodeURIComponent(next)}&` : ''}error=` +
+        encodeURIComponent('Please enter a client name.')
+    )
   }
 
   const { data: membership } = await supabase
@@ -54,7 +73,7 @@ export async function createClientProfile(formData: FormData) {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (recent) redirect(`/dashboard/clients/${recent.id}`)
+  if (recent) redirect(destination(recent.id))
 
   const { data: account } = await admin
     .from('accounts')
@@ -91,7 +110,7 @@ export async function createClientProfile(formData: FormData) {
   }
 
   revalidatePath('/dashboard/clients')
-  redirect(`/dashboard/clients/${account.id}`)
+  redirect(destination(account.id))
 }
 
 // Updates a Client Profile's basic info. RLS on the select ensures the

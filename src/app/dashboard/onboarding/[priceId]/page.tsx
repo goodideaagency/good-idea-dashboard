@@ -4,6 +4,7 @@ import { getListFields } from '@/lib/clickup'
 import { getManagedServiceByPriceId } from '@/lib/service-catalog'
 import { ServiceFormFields } from '@/components/service-form-fields'
 import { UnsavedFormGuard } from '@/components/unsaved-form-guard'
+import { SubmitButton } from '@/components/submit-button'
 import { submitManagedServiceIntake } from './actions'
 
 // Lands here right after a successful Stripe Checkout for a managed/recurring
@@ -66,9 +67,12 @@ export default async function ManagedServiceOnboardingPage({
             <ServiceFormFields fields={fields} sections={service.sections} />
           )}
 
-          <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+          <SubmitButton
+            pendingText="Finishing…"
+            className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             Finish setup
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </div>

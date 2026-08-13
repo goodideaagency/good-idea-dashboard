@@ -6,6 +6,7 @@ import { getServiceByKey } from '@/lib/service-catalog'
 import { getAgencyCreditBalance } from '@/lib/credits'
 import { ServiceFormFields } from '@/components/service-form-fields'
 import { UnsavedFormGuard } from '@/components/unsaved-form-guard'
+import { SubmitButton } from '@/components/submit-button'
 import { submitServiceRequest } from './actions'
 
 const inputCls =
@@ -16,12 +17,13 @@ export default async function RequestServiceFormPage({
   searchParams,
 }: {
   params: Promise<{ key: string }>
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; account_id?: string }>
 }) {
   const { key } = await params
-  const { error } = await searchParams
+  const { error, account_id: preselectedAccountId } = await searchParams
   const service = getServiceByKey(key)
   if (!service) redirect('/dashboard/request')
+  const newClientHref = `/dashboard/clients/new?next=${encodeURIComponent(`/dashboard/request/${key}`)}`
 
   const supabase = await createClient()
   const {
@@ -85,7 +87,7 @@ export default async function RequestServiceFormPage({
         {profiles.length === 0 ? (
           <p className="text-sm text-gray-500">
             You don&apos;t have any client profiles yet.{' '}
-            <Link href="/dashboard/clients/new" className="underline underline-offset-2">
+            <Link href={newClientHref} className="underline underline-offset-2">
               Create one first.
             </Link>
           </p>
@@ -107,7 +109,11 @@ export default async function RequestServiceFormPage({
                 id="account_id"
                 name="account_id"
                 required
-                defaultValue={profiles[0].id}
+                defaultValue={
+                  preselectedAccountId && profiles.some((a) => a.id === preselectedAccountId)
+                    ? preselectedAccountId
+                    : profiles[0].id
+                }
                 className={inputCls}
               >
                 {profiles.map((a) => (
@@ -118,7 +124,7 @@ export default async function RequestServiceFormPage({
               </select>
               <p className="mt-1 text-xs text-gray-400">
                 Don&apos;t see them?{' '}
-                <Link href="/dashboard/clients/new" className="underline underline-offset-2">
+                <Link href={newClientHref} className="underline underline-offset-2">
                   Create a new client profile
                 </Link>
                 .
@@ -151,12 +157,13 @@ export default async function RequestServiceFormPage({
               </>
             )}
 
-            <button
+            <SubmitButton
               disabled={!canAfford}
+              pendingText="Submitting…"
               className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Start This Service
-            </button>
+            </SubmitButton>
           </form>
         )}
       </div>

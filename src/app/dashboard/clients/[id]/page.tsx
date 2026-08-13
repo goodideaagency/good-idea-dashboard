@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ClickUpStatusPill } from '@/components/clickup-status-pill'
 import { LogoUploader } from '@/components/logo-uploader'
 import { AccountFiles } from '@/components/account-files'
+import { SubmitButton } from '@/components/submit-button'
 import { getTask, listTaskSummariesForAccount } from '@/lib/clickup'
 import { updateClientProfile, setAccountArchived } from '../actions'
 
@@ -77,9 +78,12 @@ export default async function ClientProfilePage({
           <form action={setAccountArchived}>
             <input type="hidden" name="account_id" value={account.id} />
             <input type="hidden" name="archived" value={account.archived ? 'false' : 'true'} />
-            <button className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
+            <SubmitButton
+              pendingText="Working…"
+              className="border border-[#e7e2d3] px-3 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-60"
+            >
               {account.archived ? 'Restore client' : 'Archive client'}
-            </button>
+            </SubmitButton>
           </form>
           <Link
             href="/dashboard/clients"
@@ -123,9 +127,12 @@ export default async function ClientProfilePage({
               />
             </div>
             <div className="sm:col-span-2">
-              <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+              <SubmitButton
+                pendingText="Saving…"
+                className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 Save profile
-              </button>
+              </SubmitButton>
             </div>
           </form>
         </div>

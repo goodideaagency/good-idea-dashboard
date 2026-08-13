@@ -9,6 +9,7 @@ import {
   type CreditHistoryEntry,
 } from '@/lib/credits'
 import { listPlansForAgency } from '@/lib/plans'
+import { SubmitButton } from '@/components/submit-button'
 import { buyCreditTopup } from './actions'
 
 function money(cents: number, currency: string) {
@@ -131,9 +132,12 @@ export default async function CreditsPage() {
                   <input type="hidden" name="priceId" value={t.priceId} />
                   <p className="font-semibold text-gray-900">{t.credits} Credits</p>
                   <p className="text-sm text-gray-500">{money(t.amountCents, t.currency)}</p>
-                  <button className="mt-4 w-full bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+                  <SubmitButton
+                    pendingText="Redirecting…"
+                    className="mt-4 w-full bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
                     Buy
-                  </button>
+                  </SubmitButton>
                 </form>
               ))}
             </div>
