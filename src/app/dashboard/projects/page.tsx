@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { listProjectTasksForAgency, type ProjectTask } from '@/lib/projects'
 import { ClickUpStatusPill } from '@/components/clickup-status-pill'
+import { CompletedServicesAccordion } from '@/components/completed-services-accordion'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -15,6 +16,7 @@ function fmtDate(iso: string) {
 const SCOPING = new Set(['scoping'])
 const IN_PROGRESS = new Set(['in progress', 'reviewing', 'revising'])
 const QUEUE = new Set(['to do', 'queue'])
+const COMPLETE = new Set(['complete'])
 
 function assignedTo(assignees: string[]) {
   return assignees.length > 0 ? assignees.join(', ') : 'Unassigned'
@@ -77,13 +79,15 @@ export default async function ProjectsPage() {
   const inProgress = tasks.filter((t) => IN_PROGRESS.has(t.status)).sort(byName)
   const queue = tasks.filter((t) => QUEUE.has(t.status)).sort(byName)
   const ongoing = tasks.filter((t) => t.status === 'ongoing').sort(byName)
+  const completed = tasks.filter((t) => COMPLETE.has(t.status)).sort(byName)
 
   const nothingYet =
     failedAccountNames.length === 0 &&
     scoping.length === 0 &&
     inProgress.length === 0 &&
     queue.length === 0 &&
-    ongoing.length === 0
+    ongoing.length === 0 &&
+    completed.length === 0
 
   return (
     <div>
@@ -136,6 +140,8 @@ export default async function ProjectsPage() {
           </div>
         </>
       )}
+
+      <CompletedServicesAccordion rows={completed} />
     </div>
   )
 }

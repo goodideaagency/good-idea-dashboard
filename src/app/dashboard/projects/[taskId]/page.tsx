@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getTask } from '@/lib/clickup'
 import { getAlreadyChargedForTask } from '@/lib/credits'
 import { ProjectTasks } from '@/components/project-tasks'
-import { postProjectComment } from '../actions'
+import { postProjectComment, reopenProject } from '../actions'
 
 export default async function ProjectDetailPage({
   params,
@@ -77,6 +77,7 @@ export default async function ProjectDetailPage({
           tasks={[task]}
           accountId={account.id}
           commentAction={postProjectComment}
+          reopenAction={reopenProject}
           creditCosts={creditCosts}
         />
       </div>

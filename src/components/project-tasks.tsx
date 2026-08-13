@@ -3,6 +3,7 @@ import type { ClickUpComment, ClickUpTask, CommentSegment } from '@/lib/clickup'
 import { ClickUpStatusPill } from './clickup-status-pill'
 import { CommentComposer } from './comment-composer'
 import { FileTile } from './file-tile'
+import { SubmitButton } from './submit-button'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -90,11 +91,15 @@ export function ProjectTasks({
   tasks,
   accountId,
   commentAction,
+  reopenAction,
   creditCosts,
 }: {
   tasks: ClickUpTask[]
   accountId?: string
   commentAction?: (formData: FormData) => void | Promise<void>
+  // Agency-only, like commentAction -- moves a completed project back to
+  // "scoping" so the team sees it needs attention again.
+  reopenAction?: (formData: FormData) => void | Promise<void>
   // Net credit cost per task (after any reconciliation), keyed by task id --
   // only present for tasks that were opened as a credit-funded service
   // request. See getAlreadyChargedForTask in credits.ts for how it's derived.
@@ -110,7 +115,9 @@ export function ProjectTasks({
 
   return (
     <div className="space-y-6">
-      {tasks.map((task) => (
+      {tasks.map((task) => {
+        const isComplete = task.status === 'complete'
+        return (
         <div key={task.id} className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
           {/* Details -- grows as tall as it needs to. */}
           <div className="bg-white p-5 ring-1 ring-[#ece7d8] lg:col-span-3">
@@ -187,12 +194,30 @@ export function ProjectTasks({
               <p className="mt-2 text-sm text-gray-400">No comments yet.</p>
             )}
 
-            {commentAction && accountId && (
+            {commentAction && accountId && !isComplete && (
               <CommentComposer accountId={accountId} taskId={task.id} commentAction={commentAction} />
+            )}
+
+            {reopenAction && accountId && isComplete && (
+              <form action={reopenAction} className="mt-4 border-t border-[#f0ecdf] pt-3">
+                <input type="hidden" name="account_id" value={accountId} />
+                <input type="hidden" name="task_id" value={task.id} />
+                <p className="text-xs text-gray-500">
+                  This project is marked complete -- comments are closed. Reopen it if the team
+                  needs to pick it back up.
+                </p>
+                <SubmitButton
+                  pendingText="Reopening…"
+                  className="mt-2 border border-[#e7e2d3] px-4 py-1.5 text-sm text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Reopen service
+                </SubmitButton>
+              </form>
             )}
           </div>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

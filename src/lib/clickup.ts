@@ -345,6 +345,21 @@ export async function updateTaskMarkdownDescription(
   }
 }
 
+// Sets an existing task's status -- used to reopen a completed project back
+// to "scoping" from the agency side.
+export async function setTaskStatus(taskId: string, status: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/task/${taskId}`, {
+      method: 'PUT',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // Creates a new Folder inside a Space -- used to auto-provision a brand-new
 // agency's own Folder (which every one of its client Lists then lives under)
 // the moment they sign up.
