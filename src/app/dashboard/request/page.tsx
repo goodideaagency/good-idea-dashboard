@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { ONE_TIME_SERVICES } from '@/lib/service-catalog'
 import { listPlansForAgency } from '@/lib/plans'
 
+function money(cents: number) {
+  return `$${(cents / 100).toLocaleString('en-US')}`
+}
+
 export default async function RequestServicePage() {
   const supabase = await createClient()
   const {
@@ -60,7 +64,13 @@ export default async function RequestServicePage() {
               key={p.id}
               className="flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
             >
-              <p className="text-lg font-semibold text-gray-900">{p.label}</p>
+              <div>
+                <p className="text-lg font-semibold text-gray-900">{p.name}</p>
+                <p className="mt-2 flex items-baseline gap-1">
+                  <span className="text-3xl font-semibold text-gray-900">{money(p.amount)}</span>
+                  <span className="text-sm text-gray-500">/{p.interval}</span>
+                </p>
+              </div>
               <Link
                 href={`/dashboard/add?plan=${encodeURIComponent(p.id)}`}
                 className="mt-8 flex items-center justify-center gap-2 bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"

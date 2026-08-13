@@ -2,7 +2,14 @@ import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { getManagedServiceByPriceId } from '@/lib/service-catalog'
 
-export type PlanOption = { id: string; label: string; amount: number; creditsPerCycle: number }
+export type PlanOption = {
+  id: string
+  name: string
+  interval: string
+  label: string
+  amount: number
+  creditsPerCycle: number
+}
 
 function money(cents: number) {
   return `$${(cents / 100).toLocaleString('en-US')}`
@@ -37,6 +44,8 @@ export async function listPlansForAgency(agencyName: string): Promise<PlanOption
         const interval = p.recurring?.interval ?? 'month'
         return {
           id: p.id,
+          name: product.name,
+          interval,
           amount,
           label: `${product.name} — ${money(amount)}/${interval}`,
           creditsPerCycle: Number(product.metadata?.credits_per_cycle ?? 0),
@@ -71,13 +80,15 @@ export async function listSignupPlans(): Promise<SignupPlan[]> {
       .map((p) => {
         const product = p.product as Stripe.Product
         const amount = p.unit_amount ?? 0
-        const interval = p.recurring?.interval ?? 'month'
+        const interval: string = p.recurring?.interval ?? 'month'
         const creditsPerCycle = Number(product.metadata?.credits_per_cycle ?? 0)
         const kind: SignupPlan['kind'] | null =
           creditsPerCycle > 0 ? 'credits' : getManagedServiceByPriceId(p.id) ? 'managed' : null
         if (!kind) return null
         return {
           id: p.id,
+          name: product.name,
+          interval,
           amount,
           label: `${product.name} — ${money(amount)}/${interval}`,
           creditsPerCycle,

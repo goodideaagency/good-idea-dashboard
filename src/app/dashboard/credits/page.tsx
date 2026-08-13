@@ -102,8 +102,12 @@ export default async function CreditsPage() {
               {creditPlans.map((p) => (
                 <div key={p.id} className="flex flex-col justify-between bg-white p-5 ring-1 ring-[#ece7d8]">
                   <div>
-                    <p className="font-semibold text-gray-900">{p.label}</p>
-                    <p className="text-sm text-gray-500">{p.creditsPerCycle} credits/cycle</p>
+                    <p className="font-semibold text-gray-900">{p.name}</p>
+                    <p className="mt-2 flex items-baseline gap-1">
+                      <span className="text-2xl font-semibold text-gray-900">{money(p.amount, 'USD')}</span>
+                      <span className="text-sm text-gray-500">/{p.interval}</span>
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500">{p.creditsPerCycle} credits/cycle</p>
                   </div>
                   <Link
                     href={`/dashboard/add?plan=${encodeURIComponent(p.id)}`}
