@@ -611,3 +611,28 @@ export async function postAttachmentComment(
     return false
   }
 }
+
+// Same idea as postAttachmentComment, but for the project comment box, where
+// the user may have typed a real message alongside the file instead of just
+// "uploaded a file" -- posts both as one ClickUp comment so it doesn't show
+// as two separate messages. `text` may be empty (attach-only, no caption).
+export async function postTaskCommentWithAttachment(
+  taskId: string,
+  authorLabel: string,
+  text: string,
+  attachmentId: string
+): Promise<boolean> {
+  try {
+    const comment: unknown[] = [{ text: authorLabel, attributes: { bold: true } }, { text: '\n' }]
+    if (text) comment.push({ text })
+    comment.push({ type: 'attachment', attachment: { id: attachmentId } })
+    const res = await fetch(`${BASE_URL}/task/${taskId}/comment`, {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}

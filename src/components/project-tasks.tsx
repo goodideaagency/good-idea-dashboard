@@ -1,8 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import type { ClickUpComment, ClickUpTask, CommentSegment } from '@/lib/clickup'
 import { ClickUpStatusPill } from './clickup-status-pill'
-import { TaskFileUpload } from './task-file-upload'
-import { SubmitButton } from './submit-button'
+import { CommentComposer } from './comment-composer'
 import { FileTile } from './file-tile'
 
 function fmtDate(iso: string) {
@@ -189,33 +188,8 @@ export function ProjectTasks({
             )}
 
             {commentAction && accountId && (
-              <form action={commentAction} className="mt-4 border-t border-[#f0ecdf] pt-3">
-                <input type="hidden" name="account_id" value={accountId} />
-                <input type="hidden" name="task_id" value={task.id} />
-                <label
-                  className="block text-xs font-mono uppercase tracking-wide text-gray-400"
-                  htmlFor={`comment-${task.id}`}
-                >
-                  Add a comment
-                </label>
-                <textarea
-                  id={`comment-${task.id}`}
-                  name="text"
-                  required
-                  rows={2}
-                  placeholder="Write a comment..."
-                  className="mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900"
-                />
-                <SubmitButton
-                  pendingText="Posting…"
-                  className="mt-2 bg-[#f7cf4a] px-4 py-1.5 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Post
-                </SubmitButton>
-              </form>
+              <CommentComposer accountId={accountId} taskId={task.id} commentAction={commentAction} />
             )}
-
-            {commentAction && accountId && <TaskFileUpload accountId={accountId} taskId={task.id} />}
           </div>
         </div>
       ))}
