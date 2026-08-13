@@ -43,7 +43,6 @@ function HistoryRow({ entry }: { entry: CreditHistoryEntry }) {
     <div className="flex items-center justify-between border-b border-[#ece7d8] py-3 text-sm last:border-0">
       <div>
         <p className="text-gray-900">{label}</p>
-        {entry.note && <p className="mt-0.5 text-xs text-gray-500">{entry.note}</p>}
         <p className="mt-0.5 text-xs text-gray-400">
           {new Date(entry.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           {isGrant &&
