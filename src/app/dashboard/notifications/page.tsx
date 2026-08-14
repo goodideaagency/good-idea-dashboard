@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { markAllNotificationsRead } from './actions'
+import { markAllNotificationsRead, markNotificationUnread } from './actions'
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -39,23 +39,30 @@ export default async function NotificationsPage() {
       ) : (
         <div className="mt-8 space-y-2">
           {list.map((n) => (
-            <Link
+            <div
               key={n.id}
-              href={`/api/notifications/open/${n.id}`}
-              className={`block border border-[#ece7d8] px-4 py-3 hover:bg-[#f6f1e4] ${
-                n.read_at ? 'bg-white' : 'bg-[#fdf8ec]'
-              }`}
+              className={`border border-[#ece7d8] px-4 py-3 ${n.read_at ? 'bg-white' : 'bg-[#fdf8ec]'}`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                <span className="shrink-0 text-[11px] text-gray-400">
-                  {new Date(n.created_at).toLocaleString()}
-                </span>
-              </div>
-              {n.body && (
-                <p className="mt-1 whitespace-pre-line text-sm text-gray-500">{n.body}</p>
+              <Link href={`/api/notifications/open/${n.id}`} className="block hover:opacity-70">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                  <span className="shrink-0 text-[11px] text-gray-400">
+                    {new Date(n.created_at).toLocaleString()}
+                  </span>
+                </div>
+                {n.body && (
+                  <p className="mt-1 whitespace-pre-line text-sm text-gray-500">{n.body}</p>
+                )}
+              </Link>
+              {n.read_at && (
+                <form action={markNotificationUnread} className="mt-2">
+                  <input type="hidden" name="notification_id" value={n.id} />
+                  <button className="text-[11px] text-gray-400 underline underline-offset-2 hover:text-gray-700 font-mono uppercase tracking-wide">
+                    Mark as unread
+                  </button>
+                </form>
               )}
-            </Link>
+            </div>
           ))}
         </div>
       )}
