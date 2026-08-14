@@ -6,6 +6,7 @@ import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
 import { StatusBadges, planLabel } from '@/components/status-badge'
 import { setAgencyArchived, impersonateUser, attachExternalSubscription } from '../../actions'
+import { ArchiveAgencyButton } from '@/components/archive-agency-button'
 
 const inputCls =
   'mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
@@ -110,19 +111,6 @@ export default async function AgencyDetailPage({
         <span className="text-sm text-gray-500">
           {accounts.length} account{accounts.length === 1 ? '' : 's'}
         </span>
-        <Link
-          href={`/admin/view-as/${agency.id}`}
-          className="border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide"
-        >
-          View
-        </Link>
-        <form action={setAgencyArchived}>
-          <input type="hidden" name="agency_id" value={agency.id} />
-          <input type="hidden" name="archived" value="true" />
-          <button className="border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
-            Archive
-          </button>
-        </form>
       </div>
 
       {memberEmails.length > 0 && (
@@ -243,6 +231,10 @@ export default async function AgencyDetailPage({
           </tbody>
         </table>
       )}
+
+      <div className="mt-10 border-t border-[#ece7d8] pt-6">
+        <ArchiveAgencyButton agencyId={agency.id} agencyName={agency.name} action={setAgencyArchived} />
+      </div>
     </div>
   )
 }

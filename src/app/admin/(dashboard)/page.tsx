@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
-import { backfillSubscriptionMetadata, setAgencyArchived, syncSubscriptionAmounts } from './actions'
+import { backfillSubscriptionMetadata, syncSubscriptionAmounts } from './actions'
 
 const ACTIVE = new Set(['active', 'trialing'])
 
@@ -190,18 +190,6 @@ export default async function AdminPage({
                 >
                   Accounts <span aria-hidden="true">→</span>
                 </Link>
-
-                <div className="mt-3 flex items-center justify-center gap-2 text-xs font-mono uppercase tracking-wide text-gray-500">
-                  <Link href={`/admin/view-as/${agency.id}`} className="hover:text-gray-800">
-                    View
-                  </Link>
-                  <span className="text-gray-300">|</span>
-                  <form action={setAgencyArchived}>
-                    <input type="hidden" name="agency_id" value={agency.id} />
-                    <input type="hidden" name="archived" value="true" />
-                    <button className="hover:text-gray-800">Archive</button>
-                  </form>
-                </div>
               </div>
             )
           })}
