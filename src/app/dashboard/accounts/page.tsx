@@ -15,7 +15,25 @@ type AccountRow = {
     product_name: string | null
     current_period_end: string | null
     stripe_price_id: string | null
+    cancel_at_period_end: boolean | null
   }[]
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+// When an account has more than one active service (e.g. PPC + Programmatic),
+// the soonest upcoming date is the most useful single thing to surface here --
+// that's the next time this account actually gets billed.
+function nextBillingLabel(subs: AccountRow['subscriptions']) {
+  const upcoming = subs
+    .filter((s) => s.status && ACTIVE.has(s.status) && s.current_period_end)
+    .sort((a, b) => a.current_period_end!.localeCompare(b.current_period_end!))[0]
+  if (!upcoming) return null
+  return upcoming.cancel_at_period_end
+    ? `Active until ${fmtDate(upcoming.current_period_end!)}`
+    : `Renews ${fmtDate(upcoming.current_period_end!)}`
 }
 
 export default async function AccountsPage() {
@@ -31,7 +49,7 @@ export default async function AccountsPage() {
   const { data: accounts } = await supabase
     .from('accounts')
     .select(
-      'id, name, website, subscriptions(status, product_name, current_period_end, stripe_price_id)'
+      'id, name, website, subscriptions(status, product_name, current_period_end, stripe_price_id, cancel_at_period_end)'
     )
     .order('created_at', { ascending: true })
     .returns<AccountRow[]>()
@@ -94,6 +112,7 @@ export default async function AccountsPage() {
         <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {accountList.map((a) => {
             const subs = a.subscriptions ?? []
+            const billingLabel = nextBillingLabel(subs)
             return (
               <div
                 key={a.id}
@@ -109,6 +128,7 @@ export default async function AccountsPage() {
                       <span className="text-xs text-gray-400">No subscription yet</span>
                     )}
                   </div>
+                  {billingLabel && <p className="mt-2 text-xs text-gray-500">{billingLabel}</p>}
                 </div>
                 <Link
                   href={`/dashboard/accounts/${a.id}`}
