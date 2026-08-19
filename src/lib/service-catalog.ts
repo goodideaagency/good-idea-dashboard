@@ -29,6 +29,15 @@ export type ServiceDef = {
 // reconcileTaskCost in lib/credits.ts).
 export const CREDIT_COST_FIELD_ID = 'd3a43790-4712-4aba-bd9c-40bcfeb3952f'
 
+// Every internal task's name, across every List in the Internal Ops space --
+// so the team can tell an internal task apart from its client-facing
+// counterpart in the "Good Idea Clients" space at a glance, without opening
+// it. Applied both at creation (submitServiceRequest, submitManagedServiceIntake)
+// and via a one-off backfill script over every existing internal task.
+export function buildInternalTaskName(taskType: string, agencyName: string, clientName: string): string {
+  return `INTERNAL: ${taskType} - ${agencyName} - ${clientName}`
+}
+
 // Optional grouping for a long intake form -- purely a rendering concern
 // (see ServiceFormFields), so the fields inside still must also appear in
 // fieldIds above. Kept as a separate list rather than deriving fieldIds from

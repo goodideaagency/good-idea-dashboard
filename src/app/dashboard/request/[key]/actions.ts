@@ -14,7 +14,7 @@ import {
   uploadTaskAttachment,
   deleteTask,
 } from '@/lib/clickup'
-import { getServiceByKey, CREDIT_COST_FIELD_ID } from '@/lib/service-catalog'
+import { getServiceByKey, CREDIT_COST_FIELD_ID, buildInternalTaskName } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
 import { getAgencyCreditBalance, spendAgencyCredits, grantAgencyCredits } from '@/lib/credits'
 
@@ -51,11 +51,12 @@ export async function submitServiceRequest(formData: FormData) {
 
   const { data: membership } = await supabase
     .from('agency_users')
-    .select('agency_id')
+    .select('agency_id, agencies(name)')
     .eq('user_id', user.id)
-    .maybeSingle()
+    .maybeSingle<{ agency_id: string; agencies: { name: string } | null }>()
   if (!membership) redirect('/dashboard/request')
-  const agencyId = membership.agency_id as string
+  const agencyId = membership.agency_id
+  const agencyName = membership.agencies?.name ?? ''
 
   // RLS ensures this only returns the account if it belongs to the caller's agency.
   const { data: account } = await supabase
@@ -110,7 +111,7 @@ export async function submitServiceRequest(formData: FormData) {
       ? formatIntakeSummary(fields, service.sections, customFields)
       : genericDescription || '_No description provided._'
 
-  const internalTaskName = `${service.label} — ${account.name} - Internal`
+  const internalTaskName = buildInternalTaskName(service.label, agencyName, account.name)
   const internalTask = service.templateId
     ? await createTaskFromTemplate(service.internalListId, service.templateId, internalTaskName)
     : await createTask(service.internalListId, internalTaskName, {

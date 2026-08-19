@@ -10,7 +10,7 @@ import {
   setTaskCustomField,
   updateTaskMarkdownDescription,
 } from '@/lib/clickup'
-import { getManagedServiceByPriceId } from '@/lib/service-catalog'
+import { getManagedServiceByPriceId, buildInternalTaskName } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,13 +49,14 @@ export async function submitManagedServiceIntake(formData: FormData) {
   // RLS ensures this only returns the account if it belongs to the caller's agency.
   const { data: account } = await supabase
     .from('accounts')
-    .select('id, name, clickup_list_id, clickup_profile_task_id')
+    .select('id, name, clickup_list_id, clickup_profile_task_id, agencies(name)')
     .eq('id', accountId)
     .maybeSingle<{
       id: string
       name: string
       clickup_list_id: string | null
       clickup_profile_task_id: string | null
+      agencies: { name: string } | null
     }>()
   if (!account?.clickup_list_id) {
     redirect(
@@ -83,7 +84,7 @@ export async function submitManagedServiceIntake(formData: FormData) {
   // piece it together from ClickUp's cramped, truncated Custom Fields sidebar.
   const summary = formatIntakeSummary(fields, service.sections, customFields)
 
-  const internalTaskName = `${service.label} — ${account.name} - Internal`
+  const internalTaskName = buildInternalTaskName(service.label, account.agencies?.name ?? '', account.name)
   const internalTask = service.templateId
     ? await createTaskFromTemplate(service.internalListId, service.templateId, internalTaskName)
     : await createTask(service.internalListId, internalTaskName, {
