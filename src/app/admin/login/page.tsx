@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { adminLogin } from './actions'
 import { Logo } from '@/components/logo'
+import { SubmitButton } from '@/components/submit-button'
 
 const inputCls =
   'mt-1 w-full rounded-lg border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
@@ -47,9 +48,12 @@ export default async function AdminLoginPage({
               className={inputCls}
             />
           </div>
-          <button className="w-full rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+          <SubmitButton
+            pendingText="Logging in…"
+            className="w-full rounded-lg bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             Log in
-          </button>
+          </SubmitButton>
         </form>
 
         <p className="mt-4 text-center text-xs text-gray-500">
