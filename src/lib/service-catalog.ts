@@ -347,20 +347,39 @@ const META_ADS_SECTIONS: FieldSection[] = [
 
 const META_ADS_FIELD_IDS = META_ADS_SECTIONS.flatMap((s) => s.fieldIds)
 
+// Every price id here must be a REAL, currently-active Stripe price -- this
+// catalog (not just onboarding_url metadata) is what makes the post-checkout
+// intake form + ClickUp task creation actually happen (see
+// checkout/return/route.ts). Confirmed live (2026-08-20): the previous two
+// PPC entries pointed at long-dead "(Test)" placeholder prices that no
+// longer exist in the live catalog at all, so a real agency's real PPC
+// signup silently fell through to the dashboard with no ClickUp task ever
+// created, no error surfaced anywhere. Verify a price id is genuinely live
+// (e.g. cross-check against a real subscriptions row, or the agency-facing
+// plan picker) before adding it here.
 export const MANAGED_SERVICES: ManagedServiceDef[] = [
   {
-    priceId: 'price_1TuxIbFMJ3Zn4Zd2x38gJoxs',
-    key: 'wl-ppc-growth',
-    label: 'White Label PPC — Growth',
+    priceId: 'price_1RiIbAFMJ3Zn4Zd2G6YYzB0C',
+    key: 'wl-ppc',
+    label: 'White Label PPC',
     clientTaskName: 'White Label PPC — Monthly Management',
     internalListId: PPC_MANAGEMENT_LIST_ID,
     fieldIds: PPC_FIELD_IDS,
     sections: PPC_SECTIONS,
   },
   {
-    priceId: 'price_1TuxIbFMJ3Zn4Zd2Dgih5ndu',
-    key: 'wl-ppc-starter',
-    label: 'White Label PPC — Starter',
+    priceId: 'price_1RiIbcFMJ3Zn4Zd22jvXqd2C',
+    key: 'wl-ppc-digitac',
+    label: 'White Label PPC (25% OFF - Digitac)',
+    clientTaskName: 'White Label PPC — Monthly Management',
+    internalListId: PPC_MANAGEMENT_LIST_ID,
+    fieldIds: PPC_FIELD_IDS,
+    sections: PPC_SECTIONS,
+  },
+  {
+    priceId: 'price_1RPPhMFMJ3Zn4Zd2KtO46vRI',
+    key: 'wl-ppc-pixan',
+    label: 'White Label PPC (25% OFF - Pixan)',
     clientTaskName: 'White Label PPC — Monthly Management',
     internalListId: PPC_MANAGEMENT_LIST_ID,
     fieldIds: PPC_FIELD_IDS,
