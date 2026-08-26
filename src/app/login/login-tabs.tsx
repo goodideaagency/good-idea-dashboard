@@ -12,12 +12,7 @@ const inputCls =
 export function LoginTabs({ error }: { error?: string }) {
   return (
     <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-[#ece7d8]">
-      <div className="flex items-center gap-2">
-        <Logo height={22} />
-        <span className="rounded-full border border-[#e7e2d3] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-gray-500">
-          Billing
-        </span>
-      </div>
+      <Logo height={22} />
       <p className="mt-2 text-sm text-gray-500">Manage your accounts and subscriptions.</p>
 
       {error && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

@@ -10,12 +10,7 @@ export default async function SignupPlanPickerPage() {
   return (
     <main className="min-h-screen bg-[#f9f5f1] px-4 py-10">
       <div className="mx-auto max-w-3xl">
-        <div className="flex items-center gap-2">
-          <Logo height={24} />
-          <span className="rounded-full border border-[#e7e2d3] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-gray-500">
-            Billing
-          </span>
-        </div>
+        <Logo height={24} />
         <h1 className="mt-6 text-3xl font-semibold text-gray-900">Choose a plan to get started</h1>
         <p className="mt-1 text-sm text-gray-500">
           Already have an account?{' '}
