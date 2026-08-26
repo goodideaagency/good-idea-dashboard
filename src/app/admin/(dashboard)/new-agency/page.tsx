@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/admin-auth'
 import { createAgency } from './actions'
-import { InviteResult } from './invite-result'
+import { CopyLinkResult } from '@/components/copy-link-result'
 
 export default async function NewAgencyPage({
   searchParams,
@@ -64,7 +64,17 @@ export default async function NewAgencyPage({
         </form>
 
         {invite && agency && email && (
-          <InviteResult url={invite} agency={agency} email={email} />
+          <CopyLinkResult
+            url={invite}
+            heading={`Agency "${agency}" created ✓`}
+            description={
+              <>
+                Send this link to <span className="font-medium">{email}</span> so they can set
+                their password and log in:
+              </>
+            }
+            note="The link can be used once. If it expires, create the agency again to generate a new one (it will reuse the same login)."
+          />
         )}
       </div>
     </div>

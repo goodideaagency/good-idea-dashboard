@@ -2,14 +2,19 @@
 
 import { useState } from 'react'
 
-export function InviteResult({
+// A one-time link an admin needs to copy and send somewhere themselves (an
+// invite, a login link) -- same green box + copyable field + button
+// everywhere it shows up.
+export function CopyLinkResult({
   url,
-  agency,
-  email,
+  heading,
+  description,
+  note,
 }: {
   url: string
-  agency: string
-  email: string
+  heading: string
+  description: React.ReactNode
+  note?: string
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -25,11 +30,8 @@ export function InviteResult({
 
   return (
     <div className="mt-6 border border-green-200 bg-green-50 p-4">
-      <p className="text-sm font-semibold text-green-900">Agency “{agency}” created ✓</p>
-      <p className="mt-1 text-sm text-green-800">
-        Send this link to <span className="font-medium">{email}</span> so they can set their
-        password and log in:
-      </p>
+      <p className="text-sm font-semibold text-green-900">{heading}</p>
+      <p className="mt-1 text-sm text-green-800">{description}</p>
       <div className="mt-3 flex gap-2">
         <input
           readOnly
@@ -45,10 +47,7 @@ export function InviteResult({
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <p className="mt-2 text-xs text-green-700">
-        The link can be used once. If it expires, create the agency again to generate a new one
-        (it will reuse the same login).
-      </p>
+      {note && <p className="mt-2 text-xs text-green-700">{note}</p>}
     </div>
   )
 }

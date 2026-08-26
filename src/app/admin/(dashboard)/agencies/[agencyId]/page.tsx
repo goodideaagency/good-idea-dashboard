@@ -5,8 +5,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
 import { StatusBadges, planLabel } from '@/components/status-badge'
-import { setAgencyArchived, impersonateUser, attachExternalSubscription } from '../../actions'
+import { setAgencyArchived, impersonateUser, attachExternalSubscription, sendLoginLink } from '../../actions'
 import { ArchiveAgencyButton } from '@/components/archive-agency-button'
+import { CopyLinkResult } from '@/components/copy-link-result'
 
 const inputCls =
   'mt-1 w-full border border-[#e7e2d3] px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900'
@@ -16,10 +17,10 @@ export default async function AgencyDetailPage({
   searchParams,
 }: {
   params: Promise<{ agencyId: string }>
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; loginLink?: string; loginEmail?: string }>
 }) {
   const { agencyId } = await params
-  const { error } = await searchParams
+  const { error, loginLink, loginEmail } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -120,15 +121,38 @@ export default async function AgencyDetailPage({
             {memberEmails.map((m) => (
               <div key={m.userId} className="flex items-center justify-between px-4 py-3">
                 <span className="text-sm text-gray-900">{m.email}</span>
-                <form action={impersonateUser}>
-                  <input type="hidden" name="user_id" value={m.userId} />
-                  <button className="border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
-                    Impersonate
-                  </button>
-                </form>
+                <div className="flex items-center gap-2">
+                  <form action={sendLoginLink}>
+                    <input type="hidden" name="user_id" value={m.userId} />
+                    <input type="hidden" name="agency_id" value={agency.id} />
+                    <button className="border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
+                      Send login link
+                    </button>
+                  </form>
+                  <form action={impersonateUser}>
+                    <input type="hidden" name="user_id" value={m.userId} />
+                    <button className="border border-[#e7e2d3] px-2.5 py-1 text-xs text-gray-700 hover:bg-[#f6f1e4] font-mono uppercase tracking-wide">
+                      Impersonate
+                    </button>
+                  </form>
+                </div>
               </div>
             ))}
           </div>
+
+          {loginLink && loginEmail && (
+            <CopyLinkResult
+              url={loginLink}
+              heading="Login link generated ✓"
+              description={
+                <>
+                  Send this link to <span className="font-medium">{loginEmail}</span> so they can
+                  log in:
+                </>
+              }
+              note="The link can be used once and expires after a while -- generate a new one if it wasn't used in time."
+            />
+          )}
         </>
       )}
 

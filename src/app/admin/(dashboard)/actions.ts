@@ -1,7 +1,7 @@
 'use server'
 
 import { randomUUID } from 'crypto'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -71,6 +71,55 @@ export async function impersonateUser(formData: FormData) {
   if (verifyError) redirect('/admin')
 
   redirect('/dashboard')
+}
+
+// Generates a fresh one-time login link for an existing agency user -- for
+// onboarding a real customer whose original invite link is long gone, or
+// getting someone back in who's locked out. Recovery type works regardless
+// of whether they already have a password set: it always lands them on
+// /set-password to choose a new one. The email is looked up server-side
+// from the user id rather than trusted from the form, so a tampered request
+// can't generate a link for an arbitrary address.
+export async function sendLoginLink(formData: FormData) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!(await isAdmin(user?.email))) redirect('/dashboard')
+
+  const targetUserId = String(formData.get('user_id') || '').trim()
+  const agencyId = String(formData.get('agency_id') || '').trim()
+  if (!targetUserId || !agencyId) redirect('/admin')
+
+  const admin = createAdminClient()
+  const { data: targetUser } = await admin.auth.admin.getUserById(targetUserId)
+  const targetEmail = targetUser.user?.email
+  if (!targetEmail) {
+    redirect(`/admin/agencies/${agencyId}?error=` + encodeURIComponent('Could not find that login.'))
+  }
+
+  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+    type: 'recovery',
+    email: targetEmail,
+  })
+  const hashedToken = linkData?.properties?.hashed_token
+  if (linkErr || !hashedToken) {
+    redirect(
+      `/admin/agencies/${agencyId}?error=` +
+        encodeURIComponent(linkErr?.message ?? 'Could not generate a login link.')
+    )
+  }
+
+  const origin =
+    (await headers()).get('origin') ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const loginUrl = `${origin}/auth/confirm?token_hash=${hashedToken}&type=recovery&next=/set-password`
+
+  redirect(
+    `/admin/agencies/${agencyId}?loginLink=` +
+      encodeURIComponent(loginUrl) +
+      '&loginEmail=' +
+      encodeURIComponent(targetEmail)
+  )
 }
 
 // Archiving/unarchiving is purely a visibility flag on the agencies row —
