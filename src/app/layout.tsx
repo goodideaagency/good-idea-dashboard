@@ -21,7 +21,7 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Good Idea Billing",
+  title: "Good Idea",
   description: "Manage your accounts and subscriptions.",
 };
 
