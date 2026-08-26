@@ -22,13 +22,17 @@ function money(cents: number) {
 export async function listPlansForAgency(agencyName: string): Promise<PlanOption[]> {
   const agencyKey = agencyName.trim().toLowerCase()
   try {
-    const prices = await stripe.prices.list({
-      active: true,
-      type: 'recurring',
-      expand: ['data.product'],
-      limit: 100,
-    })
-    return prices.data
+    // autoPagingToArray, not a single page -- a plain .list() call silently
+    // caps at 100 prices (Stripe's max page size), so once the account
+    // passes 100 active recurring prices (a real, already-crossed threshold
+    // after months of per-agency discount clones), an older price can fall
+    // off page one and vanish from this list with no error anywhere.
+    // Confirmed live: this exact bug hid "Agency Support (10 Credits)" from
+    // a brand-new signup with no error message at all.
+    const prices = await stripe.prices
+      .list({ active: true, type: 'recurring', expand: ['data.product'], limit: 100 })
+      .autoPagingToArray({ limit: 10000 })
+    return prices
       .filter((p) => {
         const meta = (p.product as Stripe.Product)?.metadata ?? {}
         if (meta.billing_visible === 'true') return true
@@ -69,13 +73,12 @@ export type SignupPlan = PlanOption & { kind: 'managed' | 'credits' }
 // as an add-on from the dashboard).
 export async function listSignupPlans(): Promise<SignupPlan[]> {
   try {
-    const prices = await stripe.prices.list({
-      active: true,
-      type: 'recurring',
-      expand: ['data.product'],
-      limit: 100,
-    })
-    return prices.data
+    // See the identical comment in listPlansForAgency above -- same
+    // pagination bug, same fix.
+    const prices = await stripe.prices
+      .list({ active: true, type: 'recurring', expand: ['data.product'], limit: 100 })
+      .autoPagingToArray({ limit: 10000 })
+    return prices
       .filter((p) => (p.product as Stripe.Product)?.metadata?.billing_visible === 'true')
       .map((p) => {
         const product = p.product as Stripe.Product

@@ -20,7 +20,7 @@ export async function scheduleFlush(batchId: string, delaySeconds: number): Prom
   const qstashBase = process.env.QSTASH_URL ?? 'https://qstash.upstash.io'
 
   try {
-    await fetch(`${qstashBase}/v2/publish/${callbackUrl}`, {
+    const res = await fetch(`${qstashBase}/v2/publish/${callbackUrl}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -32,8 +32,18 @@ export async function scheduleFlush(batchId: string, delaySeconds: number): Prom
       },
       body: JSON.stringify({ batchId }),
     })
-  } catch {
-    // Best-effort -- worst case the batch sits open until the next event on
-    // the same task re-triggers scheduling logic upstream.
+    // A failed schedule here previously vanished completely -- worst case
+    // was this batch silently sitting open for up to 24h until the daily
+    // cron sweep (see /api/notifications/sweep) caught it, with nothing
+    // anywhere to show that had happened.
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error(`scheduleFlush: QStash returned ${res.status} for batch ${batchId}: ${body}`)
+    }
+  } catch (err) {
+    // Still best-effort -- worst case the batch sits open until the daily
+    // cron sweep catches it. Logged so that's a rare, visible fallback
+    // instead of a silent, invisible one.
+    console.error('scheduleFlush: request failed:', err)
   }
 }

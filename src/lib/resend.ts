@@ -6,7 +6,7 @@ export async function sendNotificationEmail(to: string, subject: string, bodyHtm
   if (!apiKey || !from) return
 
   try {
-    await fetch('https://api.resend.com/emails', {
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -14,7 +14,18 @@ export async function sendNotificationEmail(to: string, subject: string, bodyHtm
       },
       body: JSON.stringify({ from, to, subject, html: bodyHtml }),
     })
-  } catch {
-    // Best-effort -- the in-app notification is the source of truth.
+    // A non-2xx here (bad/restricted key, unverified from-domain, rate
+    // limit) previously vanished completely -- fetch doesn't throw on an
+    // HTTP error status, so this always silently "succeeded" from the
+    // caller's point of view even when Resend rejected the send outright.
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error(`sendNotificationEmail: Resend returned ${res.status} for ${to}: ${body}`)
+    }
+  } catch (err) {
+    // Still best-effort -- the in-app notification is the source of truth,
+    // so a delivery failure here must never break the notification
+    // pipeline. Logged so it's at least visible instead of invisible.
+    console.error('sendNotificationEmail: request failed:', err)
   }
 }
