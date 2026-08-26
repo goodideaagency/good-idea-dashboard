@@ -29,6 +29,16 @@ export type ServiceDef = {
 // reconcileTaskCost in lib/credits.ts).
 export const CREDIT_COST_FIELD_ID = 'd3a43790-4712-4aba-bd9c-40bcfeb3952f'
 
+// Shared across every List in BOTH the "Good Idea Clients" and "Internal Ops"
+// spaces (created once, scoped to those two spaces only) -- holds the plain
+// text name of the agency a task belongs to. A short_text field, not a
+// dropdown: ClickUp's API has no way to add a dropdown option
+// programmatically (confirmed -- there's a create-field and a delete-field
+// endpoint, nothing to edit an existing field's options), so a dropdown would
+// need a human to add a new option by hand every time a new agency signs up.
+// Text keeps this fully automated since only this app ever writes to it.
+export const AGENCY_FIELD_ID = '27810910-acdc-42b0-a3ac-95b85828976c'
+
 // Every internal task's name, across every List in the Internal Ops space --
 // so the team can tell an internal task apart from its client-facing
 // counterpart in the "Good Idea Clients" space at a glance, without opening

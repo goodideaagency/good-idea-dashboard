@@ -14,7 +14,7 @@ import {
   uploadTaskAttachment,
   deleteTask,
 } from '@/lib/clickup'
-import { getServiceByKey, CREDIT_COST_FIELD_ID, buildInternalTaskName } from '@/lib/service-catalog'
+import { getServiceByKey, CREDIT_COST_FIELD_ID, AGENCY_FIELD_ID, buildInternalTaskName } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
 import { getAgencyCreditBalance, spendAgencyCredits, grantAgencyCredits } from '@/lib/credits'
 
@@ -102,6 +102,7 @@ export async function submitServiceRequest(formData: FormData) {
     .map((f) => ({ id: f.id, value: parseFieldValue(formData, f.id, f.type) }))
     .filter((f) => f.value !== undefined)
   customFields.push({ id: CREDIT_COST_FIELD_ID, value: service.baseCreditCost })
+  customFields.push({ id: AGENCY_FIELD_ID, value: agencyName })
 
   // Services with no dedicated intake questions (see service-catalog.ts)
   // fall back to a free-text description instead of a blank summary.
@@ -172,6 +173,7 @@ export async function submitServiceRequest(formData: FormData) {
 
   const clientTask = await createTask(account.clickup_list_id, service.label, {
     status: 'scoping',
+    customFields: [{ id: AGENCY_FIELD_ID, value: agencyName }],
   })
 
   if (!clientTask) {

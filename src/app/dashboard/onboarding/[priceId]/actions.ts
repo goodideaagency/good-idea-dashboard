@@ -10,7 +10,7 @@ import {
   setTaskCustomField,
   updateTaskMarkdownDescription,
 } from '@/lib/clickup'
-import { getManagedServiceByPriceId, buildInternalTaskName } from '@/lib/service-catalog'
+import { getManagedServiceByPriceId, buildInternalTaskName, AGENCY_FIELD_ID } from '@/lib/service-catalog'
 import { formatIntakeSummary } from '@/lib/intake-summary'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,12 +79,15 @@ export async function submitManagedServiceIntake(formData: FormData) {
     .map((f) => ({ id: f.id, value: parseFieldValue(formData, f.id, f.type) }))
     .filter((f) => f.value !== undefined)
 
+  const agencyName = account.agencies?.name ?? ''
+  customFields.push({ id: AGENCY_FIELD_ID, value: agencyName })
+
   // A readable, grouped writeup of the answers -- this becomes the task's
   // description so the team sees a clean summary up top instead of having to
   // piece it together from ClickUp's cramped, truncated Custom Fields sidebar.
   const summary = formatIntakeSummary(fields, service.sections, customFields)
 
-  const internalTaskName = buildInternalTaskName(service.label, account.agencies?.name ?? '', account.name)
+  const internalTaskName = buildInternalTaskName(service.label, agencyName, account.name)
   const internalTask = service.templateId
     ? await createTaskFromTemplate(service.internalListId, service.templateId, internalTaskName)
     : await createTask(service.internalListId, internalTaskName, {
@@ -103,6 +106,7 @@ export async function submitManagedServiceIntake(formData: FormData) {
 
   const clientTask = await createTask(account.clickup_list_id, service.clientTaskName, {
     status: 'ongoing',
+    customFields: [{ id: AGENCY_FIELD_ID, value: agencyName }],
   })
 
   if (!clientTask) {
