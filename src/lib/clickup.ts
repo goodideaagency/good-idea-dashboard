@@ -310,6 +310,19 @@ export async function deleteTask(taskId: string): Promise<boolean> {
   }
 }
 
+// Deletes a client's ClickUp List (and every task in it) -- used when an
+// admin deletes a client profile from the platform. A 404 (already deleted,
+// e.g. by hand in ClickUp first) counts as success -- the end state is the
+// same either way, nothing left to clean up.
+export async function deleteList(listId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/list/${listId}`, { method: 'DELETE', headers: headers() })
+    return res.ok || res.status === 404
+  } catch {
+    return false
+  }
+}
+
 // Adds assignees to an existing task -- used after template-based creation,
 // since that endpoint (like custom_fields) ignores an inline assignees param.
 export async function assignTask(taskId: string, userIds: number[]): Promise<boolean> {

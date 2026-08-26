@@ -7,7 +7,8 @@ import { listInvoicesForSubscription } from '@/lib/transactions'
 import { AccountServices, type AccountService } from '@/components/account-services'
 import { ProjectTasks } from '@/components/project-tasks'
 import { listTasksForAccount } from '@/lib/clickup'
-import { updateSubscriptionStateAdmin, updateAccountClickupList } from './actions'
+import { updateSubscriptionStateAdmin, updateAccountClickupList, deleteAccount } from './actions'
+import { DeleteAccountButton } from '@/components/delete-account-button'
 
 type AccountRow = {
   id: string
@@ -52,6 +53,14 @@ export default async function AdminAccountDetailPage({
   const subs = [...(account.subscriptions ?? [])].sort((a, b) =>
     (a.created_at ?? '').localeCompare(b.created_at ?? '')
   )
+
+  const activeSubs = subs.filter((s) => s.status === 'active' || s.status === 'trialing')
+  const activeSubscriptionSummary =
+    activeSubs.length > 0
+      ? `${activeSubs.length} active subscription${activeSubs.length === 1 ? '' : 's'} (${activeSubs
+          .map((s) => s.product_name ?? 'unnamed plan')
+          .join(', ')})`
+      : undefined
 
   // listTasksForAccount now throws on a real ClickUp failure (see
   // clickup.ts) instead of quietly returning [] -- caught here so a
@@ -130,6 +139,15 @@ export default async function AdminAccountDetailPage({
             services={services}
             action={updateSubscriptionStateAdmin}
             showSubscriptionId
+          />
+        </div>
+
+        <div className="mt-10 border-t border-[#ece7d8] pt-6">
+          <DeleteAccountButton
+            accountId={account.id}
+            accountName={account.name}
+            activeSubscriptionSummary={activeSubscriptionSummary}
+            action={deleteAccount}
           />
         </div>
       </div>
