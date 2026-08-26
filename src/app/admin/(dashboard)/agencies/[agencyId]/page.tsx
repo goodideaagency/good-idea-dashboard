@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
+import { getCreditsPriceIds } from '@/lib/subscriptions'
 import { StatusBadges, planLabel } from '@/components/status-badge'
 import { setAgencyArchived, impersonateUser, attachExternalSubscription, sendLoginLink } from '../../actions'
 import { ArchiveAgencyButton } from '@/components/archive-agency-button'
@@ -43,7 +44,7 @@ export default async function AgencyDetailPage({
       .order('created_at'),
     admin
       .from('subscriptions')
-      .select('account_id, agency_id, product_name, status, amount_cents, interval')
+      .select('account_id, agency_id, product_name, status, amount_cents, interval, stripe_price_id')
       .eq('agency_id', agencyId),
     admin.from('agency_users').select('user_id, agency_id').eq('agency_id', agencyId),
   ])
@@ -78,6 +79,20 @@ export default async function AgencyDetailPage({
     list.push(s)
     subsByAccount.set(s.account_id, list)
   }
+
+  // Credit plans are agency-level, not tied to any one client -- they never
+  // carry an account_id (bought at signup with no account picked, or left
+  // behind with a null account_id after the account they used to be linked
+  // to was deleted, e.g. Brain Support). Without this they'd silently
+  // vanish from this page's account table entirely even though the agency
+  // is actively paying for credits.
+  const unlinkedSubs = subs.filter((s) => !s.account_id)
+  const creditsPriceIds = await getCreditsPriceIds(
+    unlinkedSubs.map((s) => s.stripe_price_id).filter((v): v is string => !!v)
+  )
+  const agencyCreditSubs = unlinkedSubs.filter(
+    (s) => s.stripe_price_id && creditsPriceIds.has(s.stripe_price_id)
+  )
 
   const agencyMrrCents = calculateMrrCents(subs)
 
@@ -214,7 +229,7 @@ export default async function AgencyDetailPage({
         </button>
       </form>
 
-      {accounts.length === 0 ? (
+      {accounts.length === 0 && agencyCreditSubs.length === 0 ? (
         <div className="mt-6 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
           <p className="text-sm text-gray-500">No accounts yet.</p>
         </div>
@@ -228,6 +243,18 @@ export default async function AgencyDetailPage({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#f2ede0] bg-white">
+            {agencyCreditSubs.length > 0 && (
+              <tr className="bg-[#FAF7EE]">
+                <td className="px-5 py-3">
+                  <span className="font-medium text-gray-900">Agency credits</span>
+                  <p className="text-xs text-gray-500">Not tied to a specific client</p>
+                </td>
+                <td className="px-5 py-3 text-gray-700">{planLabel(agencyCreditSubs)}</td>
+                <td className="px-5 py-3">
+                  <StatusBadges statuses={agencyCreditSubs.map((s) => s.status)} />
+                </td>
+              </tr>
+            )}
             {accounts.map((acc) => {
               const accSubs = subsByAccount.get(acc.id) ?? []
               return (
