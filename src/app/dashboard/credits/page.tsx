@@ -39,10 +39,15 @@ const REASON_LABEL: Record<string, string> = {
 function HistoryRow({ entry }: { entry: CreditHistoryEntry }) {
   const isGrant = entry.type === 'grant'
   const label = isGrant ? SOURCE_LABEL[entry.source] ?? entry.source : REASON_LABEL[entry.reason] ?? entry.reason
+  // A subscription grant's note is "{plan name} — {stripe billing_reason}"
+  // (e.g. "subscription_cycle") -- keep just the plan name, since the raw
+  // reason is an internal Stripe term an agency shouldn't have to parse.
+  const serviceName = entry.note?.split(' — ')[0] || null
   return (
     <div className="flex items-center justify-between border-b border-[#ece7d8] py-3 text-sm last:border-0">
       <div>
         <p className="text-gray-900">{label}</p>
+        {serviceName && <p className="mt-0.5 text-xs text-gray-500">{serviceName}</p>}
         <p className="mt-0.5 text-xs text-gray-400">
           {new Date(entry.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           {isGrant &&
