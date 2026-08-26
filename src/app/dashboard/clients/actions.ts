@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createList, createTask, setClientStatus } from '@/lib/clickup'
+import { createList, createTask, setClientStatus, listTaskSummariesForAccount } from '@/lib/clickup'
+import { getCreditsPriceIds } from '@/lib/subscriptions'
 
 // Creates a Client Profile -- no payment involved. If the agency's ClickUp
 // Folder is connected, this also auto-provisions the client's own ClickUp
@@ -148,6 +149,15 @@ export async function updateClientProfile(formData: FormData) {
 // the team can see active/archived without leaving ClickUp. Archived
 // clients still work fine on direct links; they're only hidden from the
 // main My Clients list and from the account picker when starting new work.
+//
+// Archiving itself is blocked (not just warned) while the client still has
+// an active managed plan or an open (not-yet-complete) credit-funded
+// service -- otherwise real, still-running work silently disappears from
+// the agency's own My Clients list and account picker. A credit-plan
+// subscription that happens to be tied to this account_id (a data-hygiene
+// artifact, not a real per-client relationship -- see getCreditsPriceIds)
+// never blocks archiving; a client profile can always be reused for
+// credit-based services later regardless of managed-plan status.
 export async function setAccountArchived(formData: FormData) {
   const supabase = await createClient()
   const {
@@ -161,12 +171,52 @@ export async function setAccountArchived(formData: FormData) {
 
   const { data: owned } = await supabase
     .from('accounts')
-    .select('id, agency_id, clickup_profile_task_id')
+    .select('id, agency_id, clickup_profile_task_id, clickup_list_id, subscriptions(status, stripe_price_id, product_name)')
     .eq('id', accountId)
     .maybeSingle()
   if (!owned) redirect('/dashboard/clients')
 
   const admin = createAdminClient()
+
+  if (archived) {
+    const activeSubs = (owned.subscriptions ?? []).filter(
+      (s) => s.status === 'active' || s.status === 'trialing'
+    )
+    if (activeSubs.length > 0) {
+      const priceIds = activeSubs.map((s) => s.stripe_price_id).filter((v): v is string => !!v)
+      const creditsPriceIds = await getCreditsPriceIds(priceIds)
+      const activeManaged = activeSubs.find(
+        (s) => !s.stripe_price_id || !creditsPriceIds.has(s.stripe_price_id)
+      )
+      if (activeManaged) {
+        redirect(
+          `/dashboard/clients/${accountId}?error=` +
+            encodeURIComponent(
+              `Can't archive -- ${activeManaged.product_name ?? 'a managed plan'} is still active. Cancel it first.`
+            )
+        )
+      }
+    }
+
+    const { data: openRequests } = await admin
+      .from('service_requests')
+      .select('clickup_client_task_id')
+      .eq('account_id', accountId)
+    const openTaskIds = new Set(
+      (openRequests ?? []).map((r) => r.clickup_client_task_id).filter((v): v is string => !!v)
+    )
+    if (openTaskIds.size > 0 && owned.clickup_list_id) {
+      const tasks = await listTaskSummariesForAccount(owned.clickup_list_id).catch(() => [])
+      const stillOpen = tasks.find((t) => openTaskIds.has(t.id) && t.status !== 'complete')
+      if (stillOpen) {
+        redirect(
+          `/dashboard/clients/${accountId}?error=` +
+            encodeURIComponent(`Can't archive -- "${stillOpen.name}" is still ${stillOpen.status}. Wait until it's complete.`)
+        )
+      }
+    }
+  }
+
   await admin.from('accounts').update({ archived }).eq('id', accountId)
 
   if (owned.clickup_profile_task_id) {

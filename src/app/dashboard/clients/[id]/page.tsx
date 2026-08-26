@@ -23,10 +23,13 @@ type AccountRow = {
 
 export default async function ClientProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ error?: string }>
 }) {
   const { id } = await params
+  const { error } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -93,6 +96,10 @@ export default async function ClientProfilePage({
           </Link>
         </div>
       </div>
+
+      {error && (
+        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
 
       <div className="mx-auto mt-8 max-w-3xl">
         <p className="text-xs font-mono uppercase tracking-wide text-gray-400">Client profile</p>
