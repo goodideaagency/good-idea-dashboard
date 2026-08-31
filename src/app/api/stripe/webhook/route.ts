@@ -6,6 +6,7 @@ import { upsertSubscriptionFromStripe } from '@/lib/subscriptions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { forfeitAgencyCredits, grantAgencyCredits, grantTopupCredits } from '@/lib/credits'
 import { provisionSignupAgency } from '@/lib/signup'
+import { createPaymentNotification } from '@/lib/payment-notifications'
 
 // Only these billing reasons grant credits -- 'subscription_create' is the
 // first invoice (signup), 'subscription_cycle' is a renewal. Other reasons
@@ -14,6 +15,40 @@ import { provisionSignupAgency } from '@/lib/signup'
 const GRANT_SOURCE: Record<string, 'subscription_initial' | 'subscription_renewal'> = {
   subscription_create: 'subscription_initial',
   subscription_cycle: 'subscription_renewal',
+}
+
+// Looks up the subscription's agency/account/plan from OUR OWN already-synced
+// `subscriptions` table (kept current by upsertSubscriptionFromStripe on
+// every customer.subscription.* event) rather than re-fetching from Stripe --
+// simpler, and it's exactly the same name shown everywhere else in the app.
+// No-ops if the subscription isn't in our table yet (e.g. a payment failure
+// on a brand-new subscription arriving before its own creation event) --
+// Stripe's own retries will re-fire this for a still-failing invoice once it
+// exists.
+async function notifyInvoiceOutcome(
+  invoice: Stripe.Invoice,
+  subscriptionId: string,
+  kind: 'payment_failed' | 'payment_succeeded'
+): Promise<void> {
+  const admin = createAdminClient()
+  const { data: sub } = await admin
+    .from('subscriptions')
+    .select('agency_id, account_id, product_name, accounts(name)')
+    .eq('stripe_subscription_id', subscriptionId)
+    .maybeSingle()
+  if (!sub?.agency_id) return
+
+  await createPaymentNotification({
+    agencyId: sub.agency_id,
+    accountId: sub.account_id,
+    kind,
+    productName: sub.product_name ?? 'Subscription',
+    accountName: (sub.accounts as { name?: string } | null)?.name ?? null,
+    amountCents: kind === 'payment_failed' ? invoice.amount_due : invoice.amount_paid,
+    currency: invoice.currency,
+    hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+    stripeInvoiceId: invoice.id ?? `${subscriptionId}-${invoice.created}`,
+  })
 }
 
 // Stripe calls this endpoint whenever something changes. We verify the
@@ -147,6 +182,24 @@ export async function POST(request: NextRequest) {
           })
           revalidatePath('/dashboard', 'layout')
         }
+      }
+
+      // General "payment received" notification -- every successful
+      // invoice on a subscription we track, managed service or credit
+      // plan alike, not just the credits-granting ones handled above.
+      if (subId) {
+        await notifyInvoiceOutcome(invoice, subId, 'payment_succeeded')
+        revalidatePath('/dashboard', 'layout')
+      }
+    }
+
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object as Stripe.Invoice
+      const invoiceSub = invoice.parent?.subscription_details?.subscription
+      const subId = typeof invoiceSub === 'string' ? invoiceSub : invoiceSub?.id
+      if (subId) {
+        await notifyInvoiceOutcome(invoice, subId, 'payment_failed')
+        revalidatePath('/dashboard', 'layout')
       }
     }
   } catch (err) {

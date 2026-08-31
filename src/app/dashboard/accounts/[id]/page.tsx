@@ -68,8 +68,35 @@ export default async function AccountDetailPage({
     }))
   )
 
+  // The invoice Stripe is actively retrying for a past_due/unpaid
+  // subscription -- its hosted page is the direct "update card and pay this"
+  // link, no Customer Portal setup required. Surfaced as its own banner
+  // here rather than buried in each service's own transaction table, since
+  // this is exactly the account someone lands on to reconcile a failed
+  // payment (see the Managed Accounts list page for the same failure state).
+  const failedInvoiceUrl = services
+    .filter((s) => s.status === 'past_due' || s.status === 'unpaid')
+    .flatMap((s) => s.txns)
+    .find((t) => t.status === 'open')?.url
+
   return (
     <div>
+      {failedInvoiceUrl && (
+        <div className="mb-6 border-l-4 border-[#E0521B] bg-[#FDEDE3] p-4 ring-1 ring-[#F3C7AC]">
+          <p className="text-sm font-medium text-[#9A3412]">
+            A payment on this account failed. Update your payment method to keep this service
+            active.
+          </p>
+          <a
+            href={failedInvoiceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-block bg-[#E0521B] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+          >
+            Complete payment →
+          </a>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900">{account.name}</h1>
