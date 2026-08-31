@@ -68,11 +68,11 @@ export async function POST(req: NextRequest) {
   if (!result.ok) {
     // No admin alerting channel exists for this today -- your team is
     // already working in ClickUp, so put it where they'll actually see it.
-    await postTaskComment(
-      taskId,
-      'Good Idea Billing',
-      `⚠️ Could not charge ${result.shortfall} credit${result.shortfall === 1 ? '' : 's'} for this cost increase -- the agency's credit balance is insufficient. The ledger is now under-reflecting this task's real cost until it's resolved (top up their credits, or lower the Credit Cost field).`
-    )
+    await postTaskComment(taskId, 'Good Idea Billing', [
+      {
+        text: `⚠️ Could not charge ${result.shortfall} credit${result.shortfall === 1 ? '' : 's'} for this cost increase -- the agency's credit balance is insufficient. The ledger is now under-reflecting this task's real cost until it's resolved (top up their credits, or lower the Credit Cost field).`,
+      },
+    ])
   }
   revalidatePath('/dashboard', 'layout')
   return NextResponse.json({ ok: true })

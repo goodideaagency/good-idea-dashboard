@@ -3,6 +3,19 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTaskListId, postTaskCommentWithAttachment, uploadTaskAttachment } from '@/lib/clickup'
 import { fileTooLarge, MAX_UPLOAD_BYTES } from '@/lib/upload-limits'
+import type { ComposedSegment } from '@/lib/tiptap-clickup'
+
+function parseSegments(raw: string): ComposedSegment[] {
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (s): s is ComposedSegment => s && typeof s === 'object' && typeof s.text === 'string'
+    )
+  } catch {
+    return []
+  }
+}
 
 // Uploads a file straight onto a project task in ClickUp, attributed to the
 // uploader via a bold-name comment (see clients/[id] uploads for the same
@@ -20,7 +33,7 @@ export async function POST(req: NextRequest) {
   const form = await req.formData()
   const accountId = String(form.get('account_id') || '')
   const taskId = String(form.get('task_id') || '')
-  const text = String(form.get('text') || '').trim()
+  const segments = parseSegments(String(form.get('segments_json') || ''))
   const file = form.get('file')
   if (!accountId || !taskId || !(file instanceof File)) {
     return NextResponse.json({ error: 'Missing account_id, task_id, or file' }, { status: 400 })
@@ -63,7 +76,7 @@ export async function POST(req: NextRequest) {
   const commentPosted = await postTaskCommentWithAttachment(
     taskId,
     authorName || user.email || 'Client',
-    text,
+    segments,
     attachment.id
   )
 

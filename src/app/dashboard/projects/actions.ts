@@ -5,6 +5,23 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTaskListId, postTaskComment, setTaskStatus } from '@/lib/clickup'
+import type { ComposedSegment } from '@/lib/tiptap-clickup'
+
+// The composer authors in a real (Tiptap) rich text editor client-side and
+// sends its already-converted ClickUp segments as JSON -- see
+// tiptap-clickup.ts for why that conversion has to happen in the browser
+// (it reads the live editor's own document) rather than here.
+function parseSegments(raw: string): ComposedSegment[] {
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (s): s is ComposedSegment => s && typeof s === 'object' && typeof s.text === 'string'
+    )
+  } catch {
+    return []
+  }
+}
 
 // Posts a client's comment onto a ClickUp task, labeled with their own name
 // (falling back to email if they haven't set one) so it's clear who actually
@@ -21,8 +38,8 @@ export async function postProjectComment(formData: FormData) {
 
   const accountId = String(formData.get('account_id') || '').trim()
   const taskId = String(formData.get('task_id') || '').trim()
-  const text = String(formData.get('text') || '').trim()
-  if (!accountId || !taskId || !text) redirect('/dashboard/projects')
+  const segments = parseSegments(String(formData.get('segments_json') || ''))
+  if (!accountId || !taskId || segments.length === 0) redirect('/dashboard/projects')
 
   // RLS ensures this only returns the account if it belongs to the caller's agency.
   const { data: account } = await supabase
@@ -44,7 +61,7 @@ export async function postProjectComment(formData: FormData) {
   await admin.from('platform_comment_markers').insert({ task_id: taskId, user_id: user.id })
 
   const authorName = (user.user_metadata as { full_name?: string })?.full_name
-  const posted = await postTaskComment(taskId, authorName || user.email || 'Client', text)
+  const posted = await postTaskComment(taskId, authorName || user.email || 'Client', segments)
   if (!posted) {
     // Was silently discarded before -- the client would see their comment
     // "post" successfully while it never actually reached ClickUp, with no

@@ -1,4 +1,4 @@
-import { commentMarkdownToSegments, segmentsToClickUpComment } from './comment-markdown'
+import { segmentsToClickUpComment, type ComposedSegment } from './tiptap-clickup'
 
 const BASE_URL = 'https://api.clickup.com/api/v2'
 
@@ -10,7 +10,16 @@ function headers() {
 // inline images and file attachments, so we preserve that shape rather than
 // flattening to a single string.
 export type CommentSegment =
-  | { type: 'text'; text: string; bold?: boolean; italic?: boolean; list?: 'bullet' | 'ordered' }
+  | {
+      type: 'text'
+      text: string
+      bold?: boolean
+      italic?: boolean
+      underline?: boolean
+      link?: string
+      list?: 'bullet' | 'ordered'
+      indent?: number
+    }
   | { type: 'file'; id: string; url: string; name: string; extension: string | null; thumbnail: string | null }
 
 export type ClickUpComment = {
@@ -105,7 +114,10 @@ function normalizeCommentSegments(commentArr: any[]): CommentSegment[] {
       text: seg.text ?? '',
       bold: seg.attributes?.bold === true,
       italic: seg.attributes?.italic === true,
+      underline: seg.attributes?.underline === true,
+      link: typeof seg.attributes?.link === 'string' ? seg.attributes.link : undefined,
       list: seg.attributes?.list === 'bullet' || seg.attributes?.list === 'ordered' ? seg.attributes.list : undefined,
+      indent: typeof seg.attributes?.indent === 'number' && seg.attributes.indent > 0 ? seg.attributes.indent : undefined,
     }
   })
 }
@@ -568,7 +580,7 @@ export async function linkTasks(taskIdA: string, taskIdB: string): Promise<boole
 // comment would appear to come from whichever account owns the token, not
 // the client who actually wrote it, and ClickUp's own username isn't useful
 // here since it's always the same shared account.
-export async function postTaskComment(taskId: string, authorLabel: string, text: string) {
+export async function postTaskComment(taskId: string, authorLabel: string, segments: ComposedSegment[]) {
   try {
     const res = await fetch(`${BASE_URL}/task/${taskId}/comment`, {
       method: 'POST',
@@ -577,7 +589,7 @@ export async function postTaskComment(taskId: string, authorLabel: string, text:
         comment: [
           { text: authorLabel, attributes: { bold: true } },
           { text: '\n' },
-          ...segmentsToClickUpComment(commentMarkdownToSegments(text)),
+          ...segmentsToClickUpComment(segments),
         ],
       }),
     })
@@ -655,12 +667,12 @@ export async function postAttachmentComment(
 export async function postTaskCommentWithAttachment(
   taskId: string,
   authorLabel: string,
-  text: string,
+  segments: ComposedSegment[],
   attachmentId: string
 ): Promise<boolean> {
   try {
     const comment: unknown[] = [{ text: authorLabel, attributes: { bold: true } }, { text: '\n' }]
-    if (text) comment.push(...segmentsToClickUpComment(commentMarkdownToSegments(text)))
+    if (segments.length > 0) comment.push(...segmentsToClickUpComment(segments))
     comment.push({ type: 'attachment', attachment: { id: attachmentId } })
     const res = await fetch(`${BASE_URL}/task/${taskId}/comment`, {
       method: 'POST',

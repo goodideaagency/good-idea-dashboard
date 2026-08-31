@@ -68,7 +68,7 @@ type TextRun = Extract<CommentSegment, { type: 'text' }>
 function splitIntoLines(segments: TextRun[]): TextRun[][] {
   const lines: TextRun[][] = [[]]
   for (const seg of segments) {
-    if (seg.text === '\n' && !seg.bold && !seg.italic && !seg.list) {
+    if (seg.text === '\n' && !seg.bold && !seg.italic && !seg.underline && !seg.link && !seg.list) {
       lines.push([])
     } else {
       lines[lines.length - 1].push(seg)
@@ -78,10 +78,19 @@ function splitIntoLines(segments: TextRun[]): TextRun[][] {
 }
 
 function TextRunSpan({ seg }: { seg: TextRun }) {
-  if (seg.bold && seg.italic) return <strong className="italic">{seg.text}</strong>
-  if (seg.bold) return <strong>{seg.text}</strong>
-  if (seg.italic) return <em>{seg.text}</em>
-  return <>{seg.text}</>
+  let node: React.ReactNode = seg.text
+  if (seg.link) {
+    node = (
+      <a href={seg.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+        {node}
+      </a>
+    )
+  } else if (seg.underline) {
+    node = <span className="underline">{node}</span>
+  }
+  if (seg.italic) node = <em>{node}</em>
+  if (seg.bold) node = <strong>{node}</strong>
+  return <>{node}</>
 }
 
 // Groups consecutive lines sharing the same list attribute into one
@@ -103,11 +112,17 @@ function TextBlocks({ segments }: { segments: TextRun[] }) {
     <>
       {groupLines(splitIntoLines(segments)).map((block, i) => {
         if (block.type === 'bullet' || block.type === 'ordered') {
+          // ClickUp (like the Quill editor it's built on) stores a nested
+          // list as one flat sequence of same-type lines carrying an
+          // `indent` level each, not truly nested <ul>/<ol> -- matching
+          // that here (indenting the <li> itself, marker included, via
+          // margin rather than nesting elements) is what actually renders
+          // the same as ClickUp's own comment view for a multi-level list.
           const ListTag = block.type === 'bullet' ? 'ul' : 'ol'
           return (
             <ListTag key={i} className={block.type === 'bullet' ? 'list-disc pl-5' : 'list-decimal pl-5'}>
               {block.lines.map((line, j) => (
-                <li key={j}>
+                <li key={j} style={{ marginLeft: `${(line[0]?.indent ?? 0) * 1.25}rem` }}>
                   {line.map((seg, k) => (
                     <TextRunSpan key={k} seg={seg} />
                   ))}
