@@ -25,7 +25,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'update_webhook_events' && id && enabledEvents) {
-    const updated = await stripe.webhookEndpoints.update(id, { enabled_events: enabledEvents })
+    const updated = await stripe.webhookEndpoints.update(id, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      enabled_events: enabledEvents as any,
+    })
     return NextResponse.json({ updated: { id: updated.id, enabled_events: updated.enabled_events } })
   }
 
