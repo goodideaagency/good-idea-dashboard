@@ -11,7 +11,7 @@ export function StatusBadge({ status }: { status: string }) {
     <span
       className={`inline-block rounded-full px-3 py-1 font-mono text-xs uppercase tracking-wide ${cls}`}
     >
-      {status}
+      {status.replace(/_/g, ' ')}
     </span>
   )
 }

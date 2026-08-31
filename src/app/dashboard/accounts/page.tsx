@@ -127,11 +127,7 @@ export default async function AccountsPage() {
             return (
               <div
                 key={a.id}
-                className={
-                  hasFailedPayment
-                    ? 'flex flex-col justify-between border-l-4 border-[#E0521B] bg-[#FDEDE3] p-6 ring-1 ring-[#F3C7AC]'
-                    : 'flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]'
-                }
+                className="flex flex-col justify-between bg-[#F5EFE2] p-6 ring-1 ring-[#ece7d8]"
               >
                 <div>
                   <p className="text-lg font-semibold text-gray-900">{a.name}</p>
@@ -143,11 +139,6 @@ export default async function AccountsPage() {
                       <span className="text-xs text-gray-400">No subscription yet</span>
                     )}
                   </div>
-                  {hasFailedPayment && (
-                    <p className="mt-2 text-xs font-medium text-[#9A3412]">
-                      Payment failed -- resolve to keep this service active.
-                    </p>
-                  )}
                   {billingLabel && <p className="mt-2 text-xs text-gray-500">{billingLabel}</p>}
                 </div>
                 <Link
