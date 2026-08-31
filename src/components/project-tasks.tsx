@@ -33,11 +33,16 @@ function resolveDisplayComment(c: ClickUpComment): { author: string; segments: C
 }
 
 // Consecutive file segments (e.g. several attachments dropped on one
-// ClickUp comment) render as one tile row instead of a tile per line --
-// same grouping a plain array->rows layout would need for any file grid.
+// ClickUp comment) render as one tile row instead of a tile per line -- same
+// grouping a plain array->rows layout would need for any file grid.
+// Consecutive text segments are batched the same way, and for the same
+// reason: a multi-line list only reads as one list if every line's segments
+// stay together long enough to detect them sharing a line/list boundary
+// (see splitIntoLines/groupLines below) -- a group per individual segment
+// would see each line in total isolation.
 type SegmentGroup =
   | { kind: 'files'; segments: Extract<CommentSegment, { type: 'file' }>[] }
-  | { kind: 'text'; segment: Extract<CommentSegment, { type: 'text' }> }
+  | { kind: 'text'; segments: Extract<CommentSegment, { type: 'text' }>[] }
 
 function groupSegments(segments: CommentSegment[]): SegmentGroup[] {
   const groups: SegmentGroup[] = []
@@ -47,15 +52,90 @@ function groupSegments(segments: CommentSegment[]): SegmentGroup[] {
       if (last?.kind === 'files') last.segments.push(seg)
       else groups.push({ kind: 'files', segments: [seg] })
     } else {
-      groups.push({ kind: 'text', segment: seg })
+      const last = groups[groups.length - 1]
+      if (last?.kind === 'text') last.segments.push(seg)
+      else groups.push({ kind: 'text', segments: [seg] })
     }
   }
   return groups
 }
 
-// Renders a comment's segments in order: plain text (newlines preserved)
-// and file/image attachments as the same standard-size thumbnail tiles used
-// everywhere else in the app.
+type TextRun = Extract<CommentSegment, { type: 'text' }>
+
+// A run of consecutive text segments (i.e. one "text" SegmentGroup's worth)
+// split into lines on bare '\n' separators -- each line is the (possibly
+// several, for mixed bold/italic) runs between newlines.
+function splitIntoLines(segments: TextRun[]): TextRun[][] {
+  const lines: TextRun[][] = [[]]
+  for (const seg of segments) {
+    if (seg.text === '\n' && !seg.bold && !seg.italic && !seg.list) {
+      lines.push([])
+    } else {
+      lines[lines.length - 1].push(seg)
+    }
+  }
+  return lines
+}
+
+function TextRunSpan({ seg }: { seg: TextRun }) {
+  if (seg.bold && seg.italic) return <strong className="italic">{seg.text}</strong>
+  if (seg.bold) return <strong>{seg.text}</strong>
+  if (seg.italic) return <em>{seg.text}</em>
+  return <>{seg.text}</>
+}
+
+// Groups consecutive lines sharing the same list attribute into one
+// <ul>/<ol> block; everything else renders as plain paragraph text with
+// real line breaks, same as before this feature existed.
+function groupLines(lines: TextRun[][]) {
+  const blocks: { type: 'bullet' | 'ordered' | 'plain'; lines: TextRun[][] }[] = []
+  for (const line of lines) {
+    const type = line[0]?.list ?? 'plain'
+    const last = blocks[blocks.length - 1]
+    if (last && last.type === type) last.lines.push(line)
+    else blocks.push({ type, lines: [line] })
+  }
+  return blocks
+}
+
+function TextBlocks({ segments }: { segments: TextRun[] }) {
+  return (
+    <>
+      {groupLines(splitIntoLines(segments)).map((block, i) => {
+        if (block.type === 'bullet' || block.type === 'ordered') {
+          const ListTag = block.type === 'bullet' ? 'ul' : 'ol'
+          return (
+            <ListTag key={i} className={block.type === 'bullet' ? 'list-disc pl-5' : 'list-decimal pl-5'}>
+              {block.lines.map((line, j) => (
+                <li key={j}>
+                  {line.map((seg, k) => (
+                    <TextRunSpan key={k} seg={seg} />
+                  ))}
+                </li>
+              ))}
+            </ListTag>
+          )
+        }
+        return (
+          <p key={i} className="whitespace-pre-wrap">
+            {block.lines.map((line, j) => (
+              <span key={j}>
+                {j > 0 && <br />}
+                {line.map((seg, k) => (
+                  <TextRunSpan key={k} seg={seg} />
+                ))}
+              </span>
+            ))}
+          </p>
+        )
+      })}
+    </>
+  )
+}
+
+// Renders a comment's segments in order: formatted text (bold, italic,
+// bullet/numbered lists, newlines preserved) and file/image attachments as
+// the same standard-size thumbnail tiles used everywhere else in the app.
 function CommentBody({ segments }: { segments: CommentSegment[] }) {
   return (
     <div className="mt-0.5 space-y-2 text-gray-600">
@@ -72,11 +152,7 @@ function CommentBody({ segments }: { segments: CommentSegment[] }) {
             </div>
           )
         }
-        return (
-          <span key={i} className="whitespace-pre-wrap">
-            {group.segment.text}
-          </span>
-        )
+        return <TextBlocks key={i} segments={group.segments} />
       })}
     </div>
   )

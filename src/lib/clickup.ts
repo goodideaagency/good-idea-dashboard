@@ -1,3 +1,5 @@
+import { commentMarkdownToSegments, segmentsToClickUpComment } from './comment-markdown'
+
 const BASE_URL = 'https://api.clickup.com/api/v2'
 
 function headers() {
@@ -8,7 +10,7 @@ function headers() {
 // inline images and file attachments, so we preserve that shape rather than
 // flattening to a single string.
 export type CommentSegment =
-  | { type: 'text'; text: string; bold?: boolean }
+  | { type: 'text'; text: string; bold?: boolean; italic?: boolean; list?: 'bullet' | 'ordered' }
   | { type: 'file'; id: string; url: string; name: string; extension: string | null; thumbnail: string | null }
 
 export type ClickUpComment = {
@@ -98,7 +100,13 @@ function normalizeCommentSegments(commentArr: any[]): CommentSegment[] {
         thumbnail: seg.attachment.thumbnail_medium ?? seg.attachment.thumbnail_small ?? null,
       }
     }
-    return { type: 'text' as const, text: seg.text ?? '', bold: seg.attributes?.bold === true }
+    return {
+      type: 'text' as const,
+      text: seg.text ?? '',
+      bold: seg.attributes?.bold === true,
+      italic: seg.attributes?.italic === true,
+      list: seg.attributes?.list === 'bullet' || seg.attributes?.list === 'ordered' ? seg.attributes.list : undefined,
+    }
   })
 }
 
@@ -569,7 +577,7 @@ export async function postTaskComment(taskId: string, authorLabel: string, text:
         comment: [
           { text: authorLabel, attributes: { bold: true } },
           { text: '\n' },
-          { text },
+          ...segmentsToClickUpComment(commentMarkdownToSegments(text)),
         ],
       }),
     })
@@ -652,7 +660,7 @@ export async function postTaskCommentWithAttachment(
 ): Promise<boolean> {
   try {
     const comment: unknown[] = [{ text: authorLabel, attributes: { bold: true } }, { text: '\n' }]
-    if (text) comment.push({ text })
+    if (text) comment.push(...segmentsToClickUpComment(commentMarkdownToSegments(text)))
     comment.push({ type: 'attachment', attachment: { id: attachmentId } })
     const res = await fetch(`${BASE_URL}/task/${taskId}/comment`, {
       method: 'POST',

@@ -26,6 +26,7 @@ export function CommentComposer({
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const previewUrl = useMemo(
     () => (stagedFile && stagedFile.type.startsWith('image/') ? URL.createObjectURL(stagedFile) : null),
@@ -43,6 +44,49 @@ export function CommentComposer({
   function clearStagedFile() {
     setStagedFile(null)
     if (inputRef.current) inputRef.current.value = ''
+  }
+
+  // Wraps the current selection in **/*` markers (or inserts an empty pair
+  // with the cursor in the middle if nothing's selected) -- the composer's
+  // whole "rich text" input is just this markdown-lite syntax, parsed into
+  // ClickUp's real rich-text segments server-side (see comment-markdown.ts)
+  // so it renders as actual bold/italic there too, not literal asterisks.
+  function wrapSelection(marker: string) {
+    const el = textareaRef.current
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const selected = text.slice(start, end)
+    const next = text.slice(0, start) + marker + selected + marker + text.slice(end)
+    setText(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      const from = start + marker.length
+      el.setSelectionRange(from, from + selected.length)
+    })
+  }
+
+  // Prefixes every line touched by the current selection (or just the
+  // current line, if nothing's selected) with a list marker -- "- " for a
+  // bullet, "1. "/"2. "/... for a numbered list. The literal numbers are
+  // only for what the user sees while typing; ClickUp renumbers its own
+  // rendered list automatically, so only the list TYPE actually needs to
+  // survive into the posted comment.
+  function prefixLines(prefix: (i: number) => string) {
+    const el = textareaRef.current
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1
+    const lineEndIdx = text.indexOf('\n', end)
+    const lineEnd = lineEndIdx === -1 ? text.length : lineEndIdx
+    const block = text.slice(lineStart, lineEnd)
+    const withPrefixes = block
+      .split('\n')
+      .map((line, i) => `${prefix(i)}${line}`)
+      .join('\n')
+    setText(text.slice(0, lineStart) + withPrefixes + text.slice(lineEnd))
+    requestAnimationFrame(() => el.focus())
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -88,7 +132,42 @@ export function CommentComposer({
       >
         Add a comment
       </label>
+      <div className="mt-1 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => wrapSelection('**')}
+          title="Bold"
+          className="w-7 h-7 text-sm font-bold text-gray-600 hover:bg-[#f6f1e4]"
+        >
+          B
+        </button>
+        <button
+          type="button"
+          onClick={() => wrapSelection('*')}
+          title="Italic"
+          className="w-7 h-7 text-sm italic text-gray-600 hover:bg-[#f6f1e4]"
+        >
+          I
+        </button>
+        <button
+          type="button"
+          onClick={() => prefixLines(() => '- ')}
+          title="Bullet list"
+          className="w-7 h-7 text-sm text-gray-600 hover:bg-[#f6f1e4]"
+        >
+          •
+        </button>
+        <button
+          type="button"
+          onClick={() => prefixLines((i) => `${i + 1}. `)}
+          title="Numbered list"
+          className="w-7 h-7 text-xs text-gray-600 hover:bg-[#f6f1e4]"
+        >
+          1.
+        </button>
+      </div>
       <textarea
+        ref={textareaRef}
         id={`comment-${taskId}`}
         value={text}
         onChange={(e) => setText(e.target.value)}
