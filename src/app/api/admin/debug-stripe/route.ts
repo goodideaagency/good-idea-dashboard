@@ -13,11 +13,25 @@ export async function POST(req: NextRequest) {
   if (!(await isAdmin(user?.email))) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const body = await req.json()
-  const { action } = body as { action: 'list_webhooks' }
+  const { action, id, enabledEvents } = body as {
+    action: 'list_webhooks' | 'update_webhook_events' | 'delete_webhook'
+    id?: string
+    enabledEvents?: string[]
+  }
 
   if (action === 'list_webhooks') {
     const endpoints = await stripe.webhookEndpoints.list({ limit: 20 })
     return NextResponse.json({ endpoints: endpoints.data })
+  }
+
+  if (action === 'update_webhook_events' && id && enabledEvents) {
+    const updated = await stripe.webhookEndpoints.update(id, { enabled_events: enabledEvents })
+    return NextResponse.json({ updated: { id: updated.id, enabled_events: updated.enabled_events } })
+  }
+
+  if (action === 'delete_webhook' && id) {
+    const deleted = await stripe.webhookEndpoints.del(id)
+    return NextResponse.json({ deleted })
   }
 
   return NextResponse.json({ error: 'bad request' }, { status: 400 })
