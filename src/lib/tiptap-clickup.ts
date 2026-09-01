@@ -1,9 +1,23 @@
 // Converts a Tiptap editor document into ClickUp's own comment rich-text
-// segment format. Verified live against the real API for every attribute
-// used here (bold, italic, underline, link, list, indent): POSTed a comment
-// with exactly this {text, attributes:{...}} shape, then GET it back --
-// ClickUp echoes it completely unchanged, which is the same shape its own
-// comment editor produces, so this renders natively in ClickUp's UI.
+// segment format (the same Quill-Delta-flavored shape ClickUp's own comment
+// editor produces). Two things confirmed live against the real API that
+// aren't obvious from the docs:
+//
+// 1. Inline marks (bold/italic/underline/link) belong on the content run
+//    they apply to -- straightforward, and it's what makes a bold name line
+//    like "Demo Agency" render bold in ClickUp's own UI.
+// 2. Block-level attributes (list, indent) do NOT belong on the content run
+//    -- they belong on the '\n' that CLOSES that line, matching real Quill
+//    Delta convention. Putting them on the content run instead is silently
+//    accepted by the API and echoed back completely unchanged on a GET --
+//    which looks like proof it works -- but ClickUp's actual comment
+//    renderer doesn't look for it there, so the whole list renders as flat,
+//    unformatted text. Confirmed by a real side-by-side: a comment posted
+//    with list/indent on the content ran flat in ClickUp's own UI while
+//    this platform's own reader (built against the same wrong assumption)
+//    showed it as a properly formatted list -- i.e. the bug was invisible
+//    from this app's own side and only showed up by actually looking at
+//    ClickUp.
 export type ComposedSegment = {
   text: string
   bold?: boolean
@@ -24,34 +38,53 @@ type TiptapNode = {
   marks?: { type: string; attrs?: Record<string, unknown> }[]
 }
 
+type BlockAttrs = { list?: 'bullet' | 'ordered'; indent?: number }
 type ListContext = { list: 'bullet' | 'ordered'; indent: number } | null
+
+function walkInline(nodes: TiptapNode[] | undefined): ComposedSegment[] {
+  const runs: ComposedSegment[] = []
+  for (const node of nodes ?? []) {
+    if (node.type === 'text' && node.text) {
+      const marks = node.marks ?? []
+      const linkMark = marks.find((m) => m.type === 'link')
+      // A link with no real host (e.g. the prompt's own "https://" default,
+      // accepted as-is without editing) previously got sent through anyway
+      // -- ClickUp silently stored it as a null link, showing as plain
+      // unlinked text. Only a link that actually parses gets kept.
+      let href = ''
+      if (typeof linkMark?.attrs?.href === 'string') {
+        try {
+          href = new URL(linkMark.attrs.href).href
+        } catch {
+          href = ''
+        }
+      }
+      runs.push({
+        text: node.text,
+        ...(marks.some((m) => m.type === 'bold') ? { bold: true } : {}),
+        ...(marks.some((m) => m.type === 'italic') ? { italic: true } : {}),
+        ...(marks.some((m) => m.type === 'underline') ? { underline: true } : {}),
+        ...(href ? { link: href } : {}),
+      })
+    } else if (node.type === 'hardBreak') {
+      // A soft break WITHIN a line, not a line boundary -- no block
+      // attributes belong here even inside a list item.
+      runs.push({ text: '\n' })
+    }
+  }
+  return runs
+}
 
 export function tiptapDocToClickUpSegments(doc: TiptapNode): ComposedSegment[] {
   const out: ComposedSegment[] = []
-  let wroteAnyBlock = false
 
-  function pushLineBreak() {
-    if (wroteAnyBlock) out.push({ text: '\n' })
-    wroteAnyBlock = true
-  }
-
-  function walkInline(nodes: TiptapNode[] | undefined, ctx: ListContext) {
-    for (const node of nodes ?? []) {
-      if (node.type === 'text' && node.text) {
-        const marks = node.marks ?? []
-        const linkMark = marks.find((m) => m.type === 'link')
-        out.push({
-          text: node.text,
-          ...(marks.some((m) => m.type === 'bold') ? { bold: true } : {}),
-          ...(marks.some((m) => m.type === 'italic') ? { italic: true } : {}),
-          ...(marks.some((m) => m.type === 'underline') ? { underline: true } : {}),
-          ...(linkMark?.attrs?.href ? { link: String(linkMark.attrs.href) } : {}),
-          ...(ctx ? { list: ctx.list, ...(ctx.indent > 0 ? { indent: ctx.indent } : {}) } : {}),
-        })
-      } else if (node.type === 'hardBreak') {
-        out.push({ text: '\n' })
-      }
-    }
+  // Emits one line: its content runs, then the '\n' that closes it --
+  // carrying this line's own block attributes (list/indent), never the
+  // content runs. Every line gets a closing newline, including the very
+  // last one in the document, matching real Quill Delta (a document is
+  // always "some lines, each ending in \n").
+  function emitLine(runs: ComposedSegment[], blockAttrs: BlockAttrs) {
+    out.push(...runs, { text: '\n', ...blockAttrs })
   }
 
   function walkList(node: TiptapNode, ctx: ListContext) {
@@ -60,8 +93,7 @@ export function tiptapDocToClickUpSegments(doc: TiptapNode): ComposedSegment[] {
     for (const item of node.content ?? []) {
       for (const child of item.content ?? []) {
         if (child.type === 'paragraph') {
-          pushLineBreak()
-          walkInline(child.content, { list, indent })
+          emitLine(walkInline(child.content), { list, ...(indent > 0 ? { indent } : {}) })
         } else if (child.type === 'bulletList' || child.type === 'orderedList') {
           walkList(child, { list, indent })
         }
@@ -71,12 +103,18 @@ export function tiptapDocToClickUpSegments(doc: TiptapNode): ComposedSegment[] {
 
   for (const block of doc.content ?? []) {
     if (block.type === 'paragraph') {
-      pushLineBreak()
-      walkInline(block.content, null)
+      emitLine(walkInline(block.content), {})
     } else if (block.type === 'bulletList' || block.type === 'orderedList') {
       walkList(block, null)
     }
   }
+
+  // The doc's very last line doesn't need a trailing separator -- nothing
+  // follows it -- UNLESS it's a list line, in which case its block
+  // attributes live ONLY on that final '\n' and dropping it would silently
+  // un-list the last item.
+  const last = out[out.length - 1]
+  if (last && last.text === '\n' && !last.list) out.pop()
 
   return out
 }
@@ -95,13 +133,12 @@ function shiftTrailingWhitespaceAcrossSegments(segments: ComposedSegment[]): Com
   for (let i = 0; i < out.length - 1; i++) {
     const next = out[i + 1]
     if (next.text === '\n') continue // a real line break -- nothing to shift onto
-    // Space/tab only -- never \n. A bare {text:'\n'} line-separator segment
-    // is structural, not decorative trailing whitespace: matching it here
-    // (an earlier version used a plain \s, which DOES match a bare newline)
-    // merged the separator into the next line's own segment instead of
-    // shifting it, which broke every reader that finds line breaks by
-    // looking for a segment whose whole text is exactly '\n' (confirmed
-    // live: a pasted bullet list's line breaks vanished this way).
+    // Space/tab only -- never \n. A bare '\n' line-separator segment is
+    // structural, not decorative trailing whitespace (a plain \s pattern
+    // matches a bare newline too, which merges the separator into the next
+    // line instead of shifting onto it -- confirmed live, that broke every
+    // reader that finds line breaks by looking for a segment whose whole
+    // text is exactly '\n').
     const match = out[i].text.match(/[ \t]+$/)
     if (!match) continue
     out[i].text = out[i].text.slice(0, -match[0].length)

@@ -61,19 +61,34 @@ function groupSegments(segments: CommentSegment[]): SegmentGroup[] {
 }
 
 type TextRun = Extract<CommentSegment, { type: 'text' }>
+type Line = { runs: TextRun[]; list?: 'bullet' | 'ordered'; indent?: number }
 
 // A run of consecutive text segments (i.e. one "text" SegmentGroup's worth)
-// split into lines on bare '\n' separators -- each line is the (possibly
-// several, for mixed bold/italic) runs between newlines.
-function splitIntoLines(segments: TextRun[]): TextRun[][] {
-  const lines: TextRun[][] = [[]]
+// split into lines on '\n' segments -- real Quill Delta convention (which is
+// what ClickUp's own comment renderer actually expects, confirmed live) puts
+// block-level attributes like list/indent on the '\n' that CLOSES a line,
+// never on its content runs, so every '\n' is a line boundary regardless of
+// what it carries, and that boundary's own list/indent belongs to the line
+// it just closed.
+function splitIntoLines(segments: TextRun[]): Line[] {
+  const lines: Line[] = [{ runs: [] }]
   for (const seg of segments) {
-    if (seg.text === '\n' && !seg.bold && !seg.italic && !seg.underline && !seg.link && !seg.list) {
-      lines.push([])
+    if (seg.text === '\n') {
+      const current = lines[lines.length - 1]
+      current.list = seg.list
+      current.indent = seg.indent
+      lines.push({ runs: [] })
     } else {
-      lines[lines.length - 1].push(seg)
+      lines[lines.length - 1].runs.push(seg)
     }
   }
+  // A comment ending in a list item keeps that line's closing '\n' (its
+  // block attributes live only there -- see tiptap-clickup.ts), which
+  // leaves one bogus empty line dangling after it here. A genuinely blank
+  // trailing line never reaches this far -- the writer already strips its
+  // own trailing blank '\n' before posting.
+  const dangling = lines[lines.length - 1]
+  if (lines.length > 1 && dangling.runs.length === 0 && !dangling.list) lines.pop()
   return lines
 }
 
@@ -96,10 +111,10 @@ function TextRunSpan({ seg }: { seg: TextRun }) {
 // Groups consecutive lines sharing the same list attribute into one
 // <ul>/<ol> block; everything else renders as plain paragraph text with
 // real line breaks, same as before this feature existed.
-function groupLines(lines: TextRun[][]) {
-  const blocks: { type: 'bullet' | 'ordered' | 'plain'; lines: TextRun[][] }[] = []
+function groupLines(lines: Line[]) {
+  const blocks: { type: 'bullet' | 'ordered' | 'plain'; lines: Line[] }[] = []
   for (const line of lines) {
-    const type = line[0]?.list ?? 'plain'
+    const type = line.list ?? 'plain'
     const last = blocks[blocks.length - 1]
     if (last && last.type === type) last.lines.push(line)
     else blocks.push({ type, lines: [line] })
@@ -122,8 +137,8 @@ function TextBlocks({ segments }: { segments: TextRun[] }) {
           return (
             <ListTag key={i} className={block.type === 'bullet' ? 'list-disc pl-5' : 'list-decimal pl-5'}>
               {block.lines.map((line, j) => (
-                <li key={j} style={{ marginLeft: `${(line[0]?.indent ?? 0) * 1.25}rem` }}>
-                  {line.map((seg, k) => (
+                <li key={j} style={{ marginLeft: `${(line.indent ?? 0) * 1.25}rem` }}>
+                  {line.runs.map((seg, k) => (
                     <TextRunSpan key={k} seg={seg} />
                   ))}
                 </li>
@@ -136,7 +151,7 @@ function TextBlocks({ segments }: { segments: TextRun[] }) {
             {block.lines.map((line, j) => (
               <span key={j}>
                 {j > 0 && <br />}
-                {line.map((seg, k) => (
+                {line.runs.map((seg, k) => (
                   <TextRunSpan key={k} seg={seg} />
                 ))}
               </span>

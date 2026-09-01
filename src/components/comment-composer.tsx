@@ -98,13 +98,22 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
   function setLink() {
     if (!editor) return
     const previous = editor.getAttributes('link').href as string | undefined
-    const url = window.prompt('Link URL', previous ?? 'https://')
+    // No prefilled "https://" -- accepting a placeholder without editing it
+    // used to silently create a link to nowhere (ClickUp stored it as a
+    // null link, rendering as plain unlinked text with no error anywhere).
+    // An empty submission is now unambiguous: nothing to link to.
+    const url = window.prompt('Link URL', previous ?? '')
     if (url === null) return
-    if (url === '') {
+    if (url.trim() === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
       return
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    try {
+      const parsed = new URL(url.trim())
+      editor.chain().focus().extendMarkRange('link').setLink({ href: parsed.href }).run()
+    } catch {
+      window.alert('That doesn\'t look like a valid URL -- include https:// and a real address.')
+    }
   }
 
   return (
