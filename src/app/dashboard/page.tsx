@@ -16,6 +16,10 @@ const IN_PROGRESS = new Set(['in progress'])
 const REVIEWING = new Set(['reviewing'])
 const UPCOMING = new Set(['scoping', 'to do'])
 
+function assignedTo(assignees: string[]) {
+  return assignees.length > 0 ? assignees.join(', ') : 'Unassigned'
+}
+
 function ProjectTable({ title, rows }: { title: string; rows: ProjectTask[] }) {
   if (rows.length === 0) return null
   return (
@@ -25,7 +29,9 @@ function ProjectTable({ title, rows }: { title: string; rows: ProjectTask[] }) {
         <thead>
           <tr className="bg-white text-left text-xs uppercase tracking-wide text-gray-400">
             <th className="px-5 py-2 font-medium">Service</th>
+            <th className="px-5 py-2 font-medium">Account</th>
             <th className="px-5 py-2 font-medium">Status</th>
+            <th className="px-5 py-2 font-medium">Assigned to</th>
             <th className="px-5 py-2 font-medium">Due</th>
           </tr>
         </thead>
@@ -37,12 +43,14 @@ function ProjectTable({ title, rows }: { title: string; rows: ProjectTask[] }) {
                   href={`/dashboard/projects/${t.id}`}
                   className="font-medium text-gray-900 underline-offset-2 hover:underline"
                 >
-                  {t.name} — {t.accountName}
+                  {t.name}
                 </Link>
               </td>
+              <td className="px-5 py-3 text-gray-700">{t.accountName}</td>
               <td className="px-5 py-3">
                 <ClickUpStatusPill status={t.status} color={t.statusColor} />
               </td>
+              <td className="px-5 py-3 text-gray-700">{assignedTo(t.assignees)}</td>
               <td className="px-5 py-3 text-gray-700">{t.dueDate ? fmtDate(t.dueDate) : '—'}</td>
             </tr>
           ))}
