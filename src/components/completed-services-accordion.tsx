@@ -41,8 +41,8 @@ export function CompletedServicesAccordion({ rows }: { rows: ProjectTask[] }) {
         <table className="mt-4 w-full text-sm ring-1 ring-[#ece7d8]">
           <thead>
             <tr className="bg-white text-left text-xs uppercase tracking-wide text-gray-400">
+              <th className="px-5 py-2 font-medium">Service</th>
               <th className="px-5 py-2 font-medium">Account</th>
-              <th className="px-5 py-2 font-medium">Project</th>
               <th className="px-5 py-2 font-medium">Status</th>
               <th className="px-5 py-2 font-medium">Assigned to</th>
               <th className="px-5 py-2 font-medium">Due</th>
@@ -51,7 +51,6 @@ export function CompletedServicesAccordion({ rows }: { rows: ProjectTask[] }) {
           <tbody className="divide-y divide-[#f2ede0] bg-white">
             {rows.map((t) => (
               <tr key={t.id}>
-                <td className="px-5 py-3 text-gray-700">{t.accountName}</td>
                 <td className="px-5 py-3">
                   <Link
                     href={`/dashboard/projects/${t.id}`}
@@ -60,6 +59,7 @@ export function CompletedServicesAccordion({ rows }: { rows: ProjectTask[] }) {
                     {t.name}
                   </Link>
                 </td>
+                <td className="px-5 py-3 text-gray-700">{t.accountName}</td>
                 <td className="px-5 py-3">
                   <ClickUpStatusPill status={t.status} color={t.statusColor} />
                 </td>

@@ -24,7 +24,7 @@ function ProjectTable({ title, rows }: { title: string; rows: ProjectTask[] }) {
       <table className="mt-4 w-full text-sm ring-1 ring-[#ece7d8]">
         <thead>
           <tr className="bg-white text-left text-xs uppercase tracking-wide text-gray-400">
-            <th className="px-5 py-2 font-medium">Project</th>
+            <th className="px-5 py-2 font-medium">Service</th>
             <th className="px-5 py-2 font-medium">Status</th>
             <th className="px-5 py-2 font-medium">Due</th>
           </tr>
@@ -37,7 +37,7 @@ function ProjectTable({ title, rows }: { title: string; rows: ProjectTask[] }) {
                   href={`/dashboard/projects/${t.id}`}
                   className="font-medium text-gray-900 underline-offset-2 hover:underline"
                 >
-                  {t.accountName} — {t.name}
+                  {t.name} — {t.accountName}
                 </Link>
               </td>
               <td className="px-5 py-3">
