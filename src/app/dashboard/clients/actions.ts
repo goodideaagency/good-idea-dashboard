@@ -4,7 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createList, createTask, setClientStatus, listTaskSummariesForAccount } from '@/lib/clickup'
+import {
+  createList,
+  createTask,
+  setClientProfileStatus,
+  listTaskSummariesForAccount,
+  CLIENT_PROFILES_STATUSES,
+} from '@/lib/clickup'
 import { getCreditsPriceIds } from '@/lib/subscriptions'
 
 // Creates a Client Profile -- no payment involved. If the agency's ClickUp
@@ -91,7 +97,10 @@ export async function createClientProfile(formData: FormData) {
 
     let profilesListId = agency.clickup_profiles_list_id
     if (!profilesListId) {
-      const profilesList = await createList(agency.clickup_folder_id, 'Client Profiles')
+      // Brand new, empty list -- safe to set the status override right at
+      // creation (see the warning on createList about applying it to a
+      // list that already has tasks).
+      const profilesList = await createList(agency.clickup_folder_id, 'Client Profiles', CLIENT_PROFILES_STATUSES)
       if (profilesList) {
         profilesListId = profilesList.id
         await admin.from('agencies').update({ clickup_profiles_list_id: profilesList.id }).eq('id', agency.id)
@@ -101,11 +110,11 @@ export async function createClientProfile(formData: FormData) {
     if (profilesListId) {
       const details = website ? `Website: ${website}` : undefined
       const profileTask = await createTask(profilesListId, `Client Profile — ${name}`, {
+        status: 'client profile',
         description: details,
       })
       if (profileTask) {
         await admin.from('accounts').update({ clickup_profile_task_id: profileTask.id }).eq('id', account.id)
-        await setClientStatus(profilesListId, profileTask.id, false)
       }
     }
   }
@@ -220,14 +229,7 @@ export async function setAccountArchived(formData: FormData) {
   await admin.from('accounts').update({ archived }).eq('id', accountId)
 
   if (owned.clickup_profile_task_id) {
-    const { data: agency } = await admin
-      .from('agencies')
-      .select('clickup_profiles_list_id')
-      .eq('id', owned.agency_id)
-      .maybeSingle()
-    if (agency?.clickup_profiles_list_id) {
-      await setClientStatus(agency.clickup_profiles_list_id, owned.clickup_profile_task_id, archived)
-    }
+    await setClientProfileStatus(owned.clickup_profile_task_id, archived)
   }
 
   revalidatePath(`/dashboard/clients/${accountId}`)

@@ -411,14 +411,39 @@ export async function createFolder(spaceId: string, name: string): Promise<{ id:
   }
 }
 
+// A Client Profiles list's tasks are reference records, never real work --
+// "to do"/"in progress"/etc (inherited from the Space by default) makes
+// every profile look like unstarted work. This is its own closed set of
+// just the two states that actually apply, set as a per-list override at
+// creation time. Note: ClickUp requires exactly one 'open' and one 'closed'
+// type status minimum, which is why there are two states here and not one --
+// confirmed live, a single-status override is rejected outright.
+export const CLIENT_PROFILES_STATUSES = [
+  { status: 'client profile', color: '#4a90d9', orderindex: 0, type: 'open' },
+  { status: 'archived', color: '#87909e', orderindex: 1, type: 'closed' },
+]
+
 // Creates a new List inside a Folder -- used to auto-provision a brand-new
-// client's own List the moment their Client Profile is created.
-export async function createList(folderId: string, name: string): Promise<{ id: string } | null> {
+// client's own List the moment their Client Profile is created, and (with
+// `statuses`) the agency's shared Client Profiles list itself. Only pass
+// `statuses` for a brand-new, empty list -- applying a status override to a
+// list that already has tasks invalidates their current status (confirmed
+// live: ClickUp marks it a "removed" pseudo-status, which the task's own
+// update endpoint then refuses to move off of; the only fix found was
+// moving the task to a different list and back, not a plain status update).
+export async function createList(
+  folderId: string,
+  name: string,
+  statuses?: { status: string; color: string; orderindex: number; type: string }[]
+): Promise<{ id: string } | null> {
   try {
     const res = await fetch(`${BASE_URL}/folder/${folderId}/list`, {
       method: 'POST',
       headers: { ...headers(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({
+        name,
+        ...(statuses ? { override_statuses: true, statuses } : {}),
+      }),
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -454,92 +479,14 @@ export async function createTaskFromTemplate(
   }
 }
 
-// Ensures a List has a "Client Status" dropdown Custom Field (Active /
-// Archived), creating it the first time it's needed rather than requiring
-// every agency's Client Profiles list to be pre-configured by hand.
-// Idempotent: a second call just finds the field that's already there.
-export async function ensureClientStatusField(
-  listId: string
-): Promise<{ fieldId: string; activeIndex: number; archivedIndex: number } | null> {
-  const indicesFrom = (options: { name?: string; label?: string; orderindex: number }[]) => {
-    const activeIndex = options.find((o) => (o.name ?? o.label) === 'Active')?.orderindex
-    const archivedIndex = options.find((o) => (o.name ?? o.label) === 'Archived')?.orderindex
-    return activeIndex !== undefined && archivedIndex !== undefined ? { activeIndex, archivedIndex } : null
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const findExisting = async (): Promise<{ fieldId: string; activeIndex: number; archivedIndex: number } | null> => {
-    try {
-      const res = await fetch(`${BASE_URL}/list/${listId}/field`, { headers: headers() })
-      if (!res.ok) return null
-      const data = await res.json()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const matches = (data.fields ?? []).filter((f: any) => f.name === 'Client Status' && f.type === 'drop_down')
-      if (matches.length === 0) return null
-      // Two concurrent first-ever calls for the same List could each create
-      // their own copy of this field before seeing the other's -- if that
-      // ever happens, always converge on the same one (lowest id) instead of
-      // whatever order the API happens to return, so status writes don't
-      // silently split across two fields.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const field = matches.sort((a: any, b: any) => (a.id < b.id ? -1 : 1))[0]
-      const indices = indicesFrom(field.type_config?.options ?? [])
-      return indices ? { fieldId: field.id, ...indices } : null
-    } catch {
-      return null
-    }
-  }
-
-  const existing = await findExisting()
-  if (existing) return existing
-
-  try {
-    const res = await fetch(`${BASE_URL}/list/${listId}/field`, {
-      method: 'POST',
-      headers: { ...headers(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Client Status',
-        type: 'drop_down',
-        type_config: { options: [{ name: 'Active' }, { name: 'Archived' }] },
-      }),
-    })
-    if (res.ok) {
-      const data = await res.json()
-      const indices = indicesFrom(data.type_config?.options ?? [])
-      if (indices) return { fieldId: data.id, ...indices }
-    }
-  } catch {
-    // fall through to the lookup below -- another concurrent call may have
-    // created it, or ClickUp may just need a moment (see comment below).
-  }
-
-  // Either the create response didn't come back with usable option data yet
-  // (confirmed live: ClickUp needs a moment before a brand-new field is
-  // fully readable) or a concurrent call created it first -- look it up
-  // fresh instead of leaving this client with no status at all.
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-  return findExisting()
-}
-
-// Sets a Client Profile task's Client Status field to Active or Archived,
-// creating the field on its List the first time it's needed. When that
-// first creation just happened, setting a value on it right away can 404 --
-// confirmed live, ClickUp needs a moment before a brand-new field is usable
-// -- so this retries once after a short delay rather than silently leaving
-// an agency's very first client with a blank status.
-export async function setClientStatus(
-  profilesListId: string,
-  profileTaskId: string,
-  archived: boolean
-): Promise<boolean> {
-  const field = await ensureClientStatusField(profilesListId)
-  if (!field) return false
-  const value = archived ? field.archivedIndex : field.activeIndex
-  for (const delayMs of [0, 1500, 4000]) {
-    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
-    if (await setTaskCustomField(profileTaskId, field.fieldId, value)) return true
-  }
-  return false
+// A Client Profile task's own status IS its active/archived state -- see
+// CLIENT_PROFILES_STATUSES below, applied as a per-list override at
+// creation time. Replaces an earlier "Client Status" dropdown Custom Field
+// that served the same purpose: a task's native status is what ClickUp
+// actually shows as a colored pill everywhere (board view, list view, the
+// task itself), so it doesn't need a second, easy-to-miss place to look.
+export async function setClientProfileStatus(profileTaskId: string, archived: boolean): Promise<boolean> {
+  return setTaskStatus(profileTaskId, archived ? 'archived' : 'client profile')
 }
 
 // Sets one Custom Field's value on an existing task.
