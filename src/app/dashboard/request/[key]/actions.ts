@@ -22,6 +22,7 @@ import {
   markIntakeSubmissionSynced,
   formDataToPlainObject,
 } from '@/lib/intake-submissions'
+import { deleteFormDraft } from '@/lib/form-drafts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFieldValue(formData: FormData, fieldId: string, type: string): any {
@@ -238,6 +239,7 @@ export async function submitServiceRequest(formData: FormData) {
     internalTaskId: internalTask.id,
     clientTaskId: clientTask.id,
   })
+  await deleteFormDraft({ userId: user.id, kind: 'service_request', context: { service_key: serviceKey } })
 
   redirect(`/dashboard/projects/${clientTask.id}`)
 }

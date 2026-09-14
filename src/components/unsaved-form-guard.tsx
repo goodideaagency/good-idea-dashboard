@@ -7,8 +7,9 @@ import { useEffect, useRef } from 'react'
 // Router has no router-level "confirm navigation" hook, so this captures
 // clicks on <a> tags directly). Disarms itself the moment the form is
 // actually submitted, so finishing the form navigates away with no prompt.
-// There's no draft-saving yet, so an abandoned form loses everything --
-// this is the stopgap until there is.
+// DraftAutosave (see draft-autosave.tsx) saves progress in the background
+// on these same forms, so leaving isn't a total loss anymore -- this just
+// confirms they really meant to go before actually finishing.
 export function UnsavedFormGuard({ formId }: { formId: string }) {
   const submittingRef = useRef(false)
 
@@ -34,7 +35,9 @@ export function UnsavedFormGuard({ formId }: { formId: string }) {
       const url = new URL(anchor.href, window.location.href)
       if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return
 
-      const leave = window.confirm("You haven't finished this form yet. Leave without submitting?")
+      const leave = window.confirm(
+        "Your progress is saved, but you haven't submitted this form yet. Leave anyway?"
+      )
       if (!leave) {
         e.preventDefault()
         e.stopPropagation()

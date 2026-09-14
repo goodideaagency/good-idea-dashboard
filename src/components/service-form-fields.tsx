@@ -7,20 +7,40 @@ const inputCls =
 // Every field is required except checkboxes (an unchecked, optional box is
 // meaningful -- forcing it checked would break e.g. "Rush this audit?") and
 // file/attachment uploads, which stay optional per policy: never block
-// submission on a file. Everything else must be filled in since there's no
-// draft-saving yet -- an abandoned form means nothing was captured at all.
-function FieldInput({ f }: { f: ClickUpField }) {
+// submission on a file.
+//
+// `draftValue` pre-fills from a previously autosaved draft (see
+// lib/form-drafts.ts) -- always the plain string(s) formDataToPlainObject
+// stored, so it matches whatever the browser itself would have sent.
+function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }) {
   if (f.type === 'checkbox') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="checkbox" className="mt-1 h-4 w-4" />
+    return (
+      <input
+        id={`field-${f.id}`}
+        name={`field_${f.id}`}
+        type="checkbox"
+        defaultChecked={draftValue === 'on'}
+        className="mt-1 h-4 w-4"
+      />
+    )
   }
   if (f.type === 'attachment') {
+    // A file input's value can't be pre-filled by the platform -- draft
+    // autosave already drops file values for the same reason.
     return (
       <input id={`field-${f.id}`} name={`field_${f.id}`} type="file" className="mt-1 text-sm text-gray-700" />
     )
   }
+  const defaultValue = typeof draftValue === 'string' ? draftValue : undefined
   if (f.type === 'drop_down') {
     return (
-      <select id={`field-${f.id}`} name={`field_${f.id}`} required className={inputCls}>
+      <select
+        id={`field-${f.id}`}
+        name={`field_${f.id}`}
+        required
+        defaultValue={defaultValue ?? ''}
+        className={inputCls}
+      >
         <option value="">Select...</option>
         {f.options.map((o) => (
           <option key={o.id} value={o.id}>
@@ -31,18 +51,63 @@ function FieldInput({ f }: { f: ClickUpField }) {
     )
   }
   if (f.type === 'number') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="number" required className={inputCls} />
+    return (
+      <input
+        id={`field-${f.id}`}
+        name={`field_${f.id}`}
+        type="number"
+        required
+        defaultValue={defaultValue}
+        className={inputCls}
+      />
+    )
   }
   if (f.type === 'date') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="date" required className={inputCls} />
+    return (
+      <input
+        id={`field-${f.id}`}
+        name={`field_${f.id}`}
+        type="date"
+        required
+        defaultValue={defaultValue}
+        className={inputCls}
+      />
+    )
   }
   if (f.type === 'url') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="url" required className={inputCls} />
+    return (
+      <input
+        id={`field-${f.id}`}
+        name={`field_${f.id}`}
+        type="url"
+        required
+        defaultValue={defaultValue}
+        className={inputCls}
+      />
+    )
   }
   if (f.type === 'email') {
-    return <input id={`field-${f.id}`} name={`field_${f.id}`} type="email" required className={inputCls} />
+    return (
+      <input
+        id={`field-${f.id}`}
+        name={`field_${f.id}`}
+        type="email"
+        required
+        defaultValue={defaultValue}
+        className={inputCls}
+      />
+    )
   }
-  return <textarea id={`field-${f.id}`} name={`field_${f.id}`} rows={3} required className={inputCls} />
+  return (
+    <textarea
+      id={`field-${f.id}`}
+      name={`field_${f.id}`}
+      rows={3}
+      required
+      defaultValue={defaultValue}
+      className={inputCls}
+    />
+  )
 }
 
 // "labels" is ClickUp's multi-select type -- rendered as a checkbox group
@@ -50,14 +115,21 @@ function FieldInput({ f }: { f: ClickUpField }) {
 // rather than the single-control pattern the other types use. Left optional
 // like single checkboxes, since HTML has no way to require "at least one of
 // these checked."
-function LabelsField({ f }: { f: ClickUpField }) {
+function LabelsField({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }) {
+  const checkedIds = Array.isArray(draftValue) ? draftValue : draftValue ? [draftValue] : []
   return (
     <fieldset>
       <legend className="block text-sm font-medium text-gray-700">{f.name}</legend>
       <div className="mt-1 space-y-1.5">
         {f.options.map((o) => (
           <label key={o.id} className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" name={`field_${f.id}`} value={o.id} className="h-4 w-4" />
+            <input
+              type="checkbox"
+              name={`field_${f.id}`}
+              value={o.id}
+              defaultChecked={checkedIds.includes(o.id)}
+              className="h-4 w-4"
+            />
             {o.name}
           </label>
         ))}
@@ -66,14 +138,14 @@ function LabelsField({ f }: { f: ClickUpField }) {
   )
 }
 
-function Field({ f }: { f: ClickUpField }) {
-  if (f.type === 'labels') return <LabelsField f={f} />
+function Field({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }) {
+  if (f.type === 'labels') return <LabelsField f={f} draftValue={draftValue} />
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700" htmlFor={`field-${f.id}`}>
         {f.name}
       </label>
-      <FieldInput f={f} />
+      <FieldInput f={f} draftValue={draftValue} />
     </div>
   )
 }
@@ -86,15 +158,19 @@ function Field({ f }: { f: ClickUpField }) {
 export function ServiceFormFields({
   fields,
   sections,
+  defaultValues,
 }: {
   fields: ClickUpField[]
   sections?: FieldSection[]
+  // A previously autosaved draft's raw form entries, keyed the same way
+  // formData is (`field_${id}`) -- see lib/form-drafts.ts.
+  defaultValues?: Record<string, unknown>
 }) {
   if (!sections || sections.length === 0) {
     return (
       <div className="space-y-4">
         {fields.map((f) => (
-          <Field key={f.id} f={f} />
+          <Field key={f.id} f={f} draftValue={defaultValues?.[`field_${f.id}`]} />
         ))}
       </div>
     )
@@ -112,7 +188,7 @@ export function ServiceFormFields({
             <p className="text-xs font-mono uppercase tracking-wide text-gray-400">{section.title}</p>
             <div className="mt-3 space-y-4">
               {sectionFields.map((f) => (
-                <Field key={f.id} f={f} />
+                <Field key={f.id} f={f} draftValue={defaultValues?.[`field_${f.id}`]} />
               ))}
             </div>
           </div>

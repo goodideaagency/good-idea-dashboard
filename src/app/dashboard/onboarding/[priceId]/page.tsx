@@ -2,8 +2,11 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getListFields } from '@/lib/clickup'
 import { getManagedServiceByPriceId } from '@/lib/service-catalog'
+import { getFormDraft } from '@/lib/form-drafts'
 import { ServiceFormFields } from '@/components/service-form-fields'
 import { UnsavedFormGuard } from '@/components/unsaved-form-guard'
+import { DraftAutosave } from '@/components/draft-autosave'
+import { DraftRestoredBanner } from '@/components/draft-restored-banner'
 import { SubmitButton } from '@/components/submit-button'
 import { submitManagedServiceIntake } from './actions'
 
@@ -37,7 +40,11 @@ export default async function ManagedServiceOnboardingPage({
     .maybeSingle<{ id: string; name: string }>()
   if (!account) redirect('/dashboard')
 
-  const allFields = await getListFields(service.internalListId)
+  const draftContext = { price_id: priceId }
+  const [allFields, draft] = await Promise.all([
+    getListFields(service.internalListId),
+    getFormDraft({ userId: user.id, kind: 'managed_service_intake', context: draftContext }),
+  ])
   const fields = service.fieldIds
     .map((id) => allFields.find((f) => f.id === id))
     .filter((f) => f !== undefined)
@@ -52,6 +59,13 @@ export default async function ManagedServiceOnboardingPage({
 
       <div className="mt-6 max-w-xl bg-white p-6 ring-1 ring-[#ece7d8]">
         {error && <p className="mb-4 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {draft && (
+          <DraftRestoredBanner
+            kind="managed_service_intake"
+            context={draftContext}
+            updatedAt={draft.updatedAt}
+          />
+        )}
 
         <form id="onboarding-form" action={submitManagedServiceIntake} className="space-y-4">
           {fields.length > 0 && <UnsavedFormGuard formId="onboarding-form" />}
@@ -64,7 +78,11 @@ export default async function ManagedServiceOnboardingPage({
               started.
             </p>
           ) : (
-            <ServiceFormFields fields={fields} sections={service.sections} />
+            <ServiceFormFields fields={fields} sections={service.sections} defaultValues={draft?.formEntries} />
+          )}
+
+          {fields.length > 0 && (
+            <DraftAutosave formId="onboarding-form" kind="managed_service_intake" context={draftContext} />
           )}
 
           <SubmitButton

@@ -4,8 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { getListFields } from '@/lib/clickup'
 import { getServiceByKey } from '@/lib/service-catalog'
 import { getAgencyCreditBalance } from '@/lib/credits'
+import { getFormDraft } from '@/lib/form-drafts'
 import { ServiceFormFields } from '@/components/service-form-fields'
 import { UnsavedFormGuard } from '@/components/unsaved-form-guard'
+import { DraftAutosave } from '@/components/draft-autosave'
+import { DraftRestoredBanner } from '@/components/draft-restored-banner'
 import { SubmitButton } from '@/components/submit-button'
 import { submitServiceRequest } from './actions'
 
@@ -37,10 +40,12 @@ export default async function RequestServiceFormPage({
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const [{ data: accounts }, allFields, balance] = await Promise.all([
+  const draftContext = { service_key: key }
+  const [{ data: accounts }, allFields, balance, draft] = await Promise.all([
     supabase.from('accounts').select('id, name, clickup_list_id').eq('archived', false).order('name'),
     getListFields(service.internalListId),
     membership?.agency_id ? getAgencyCreditBalance(membership.agency_id as string) : Promise.resolve(0),
+    getFormDraft({ userId: user.id, kind: 'service_request', context: draftContext }),
   ])
   const profiles = accounts ?? []
   // Only this service's allow-listed fields -- see service-catalog.ts for why.
@@ -74,6 +79,9 @@ export default async function RequestServiceFormPage({
 
       <div className="mt-6 max-w-xl bg-white p-6 ring-1 ring-[#ece7d8]">
         {error && <p className="mb-4 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {draft && (
+          <DraftRestoredBanner kind="service_request" context={draftContext} updatedAt={draft.updatedAt} />
+        )}
         {!canAfford && (
           <p className="mb-4 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             You don&apos;t have enough credits for this service yet.{' '}
@@ -110,9 +118,12 @@ export default async function RequestServiceFormPage({
                 name="account_id"
                 required
                 defaultValue={
-                  preselectedAccountId && profiles.some((a) => a.id === preselectedAccountId)
-                    ? preselectedAccountId
-                    : profiles[0].id
+                  typeof draft?.formEntries.account_id === 'string' &&
+                  profiles.some((a) => a.id === draft.formEntries.account_id)
+                    ? draft.formEntries.account_id
+                    : preselectedAccountId && profiles.some((a) => a.id === preselectedAccountId)
+                      ? preselectedAccountId
+                      : profiles[0].id
                 }
                 className={inputCls}
               >
@@ -131,7 +142,7 @@ export default async function RequestServiceFormPage({
               </p>
             </div>
 
-            <ServiceFormFields fields={fields} sections={service.sections} />
+            <ServiceFormFields fields={fields} sections={service.sections} defaultValues={draft?.formEntries} />
 
             {genericIntake && (
               <>
@@ -144,6 +155,9 @@ export default async function RequestServiceFormPage({
                     name="description"
                     rows={4}
                     required
+                    defaultValue={
+                      typeof draft?.formEntries.description === 'string' ? draft.formEntries.description : undefined
+                    }
                     className={inputCls}
                     placeholder="What do you need for this request?"
                   />
@@ -156,6 +170,8 @@ export default async function RequestServiceFormPage({
                 </div>
               </>
             )}
+
+            <DraftAutosave formId="request-form" kind="service_request" context={draftContext} />
 
             <SubmitButton
               disabled={!canAfford}
