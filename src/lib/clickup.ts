@@ -81,6 +81,31 @@ function normalizeTask(t: any): ClickUpTaskSummary {
   }
 }
 
+// A comment's block-level `list`/`indent` attributes come back in two
+// different shapes depending on who authored it, confirmed live on the
+// exact same task: this platform's own composer writes them flat
+// (attributes: {list: 'bullet', indent: 1}, see tiptap-clickup.ts), but
+// ClickUp's own native comment editor nests them one level deeper
+// (attributes: {list: {list: 'bullet', indent: 1}}) -- presumably room for
+// future list-item metadata (e.g. checkbox state) ClickUp doesn't expose
+// here. Reading only the flat shape silently dropped every list typed
+// directly in ClickUp instead of through this app.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeListAttr(raw: any): 'bullet' | 'ordered' | undefined {
+  if (raw === 'bullet' || raw === 'ordered') return raw
+  if (raw && typeof raw === 'object' && (raw.list === 'bullet' || raw.list === 'ordered')) return raw.list
+  return undefined
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeIndentAttr(attributes: any): number | undefined {
+  const nested = attributes?.list
+  if (nested && typeof nested === 'object' && typeof nested.indent === 'number' && nested.indent > 0) {
+    return nested.indent
+  }
+  return typeof attributes?.indent === 'number' && attributes.indent > 0 ? attributes.indent : undefined
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeCommentSegments(commentArr: any[]): CommentSegment[] {
   return (commentArr ?? []).map((seg) => {
@@ -116,8 +141,8 @@ function normalizeCommentSegments(commentArr: any[]): CommentSegment[] {
       italic: seg.attributes?.italic === true,
       underline: seg.attributes?.underline === true,
       link: typeof seg.attributes?.link === 'string' ? seg.attributes.link : undefined,
-      list: seg.attributes?.list === 'bullet' || seg.attributes?.list === 'ordered' ? seg.attributes.list : undefined,
-      indent: typeof seg.attributes?.indent === 'number' && seg.attributes.indent > 0 ? seg.attributes.indent : undefined,
+      list: normalizeListAttr(seg.attributes?.list),
+      indent: normalizeIndentAttr(seg.attributes),
     }
   })
 }
