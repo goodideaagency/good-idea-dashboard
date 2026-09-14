@@ -431,6 +431,12 @@ export const CLIENT_PROFILES_STATUSES = [
 // live: ClickUp marks it a "removed" pseudo-status, which the task's own
 // update endpoint then refuses to move off of; the only fix found was
 // moving the task to a different list and back, not a plain status update).
+//
+// `override_statuses`/`statuses` passed on THIS create call are silently
+// ignored by ClickUp -- confirmed live (twice): the list comes back with the
+// folder's default statuses regardless of what's sent. The override only
+// actually takes effect via a follow-up PUT (setListStatusOverride below),
+// so that's applied as a second call once the list exists.
 export async function createList(
   folderId: string,
   name: string,
@@ -440,16 +446,33 @@ export async function createList(
     const res = await fetch(`${BASE_URL}/folder/${folderId}/list`, {
       method: 'POST',
       headers: { ...headers(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        ...(statuses ? { override_statuses: true, statuses } : {}),
-      }),
+      body: JSON.stringify({ name }),
     })
     if (!res.ok) return null
     const data = await res.json()
-    return data.id ? { id: data.id } : null
+    if (!data.id) return null
+    if (statuses) await setListStatusOverride(data.id, statuses)
+    return { id: data.id }
   } catch {
     return null
+  }
+}
+
+// Applies a status-workflow override to an existing List -- see the warning
+// on createList above about only ever doing this to a brand-new, empty list.
+export async function setListStatusOverride(
+  listId: string,
+  statuses: { status: string; color: string; orderindex: number; type: string }[]
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/list/${listId}`, {
+      method: 'PUT',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ override_statuses: true, statuses }),
+    })
+    return res.ok
+  } catch {
+    return false
   }
 }
 
