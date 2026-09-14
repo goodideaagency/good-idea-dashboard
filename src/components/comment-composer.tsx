@@ -27,7 +27,7 @@ function ToolbarButton({
       onMouseDown={(e) => e.preventDefault()} // keep the editor's own selection from collapsing on click
       onClick={onClick}
       title={title}
-      className={`flex h-7 w-7 items-center justify-center text-sm text-gray-600 hover:bg-[#f6f1e4] ${active ? 'bg-[#f0ecdf] text-gray-900' : ''}`}
+      className={`flex h-7 w-7 shrink-0 items-center justify-center text-sm text-gray-600 hover:bg-[#f6f1e4] ${active ? 'bg-[#f0ecdf] text-gray-900' : ''}`}
     >
       {children}
     </button>
@@ -117,7 +117,7 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
   }
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex flex-wrap items-center gap-0.5">
       <ToolbarButton title="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
         <span className="font-bold">B</span>
       </ToolbarButton>
@@ -294,8 +294,8 @@ export function CommentComposer({
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-[#e7e2d3] bg-[#faf7f0] px-2 py-1">
-          <div className="flex items-center gap-0.5">
+        <div className="flex flex-wrap items-center justify-between gap-y-1 border-t border-[#e7e2d3] bg-[#faf7f0] px-2 py-1">
+          <div className="flex flex-wrap items-center gap-0.5">
             <EditorToolbar editor={editor} />
             <span className="mx-1 h-4 w-px bg-[#e7e2d3]" />
             <ToolbarButton title="Attach a file" onClick={() => inputRef.current?.click()}>
@@ -305,7 +305,7 @@ export function CommentComposer({
           <button
             type="submit"
             disabled={posting || !canSubmit}
-            className="bg-[#f7cf4a] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+            className="shrink-0 bg-[#f7cf4a] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {posting ? 'Posting…' : 'Send'}
           </button>
