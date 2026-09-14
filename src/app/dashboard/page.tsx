@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { listProjectTasksForAgency, type ProjectTask } from '@/lib/projects'
+import { listProjectTasksForAgency, listIncompleteForms, type ProjectTask } from '@/lib/projects'
 import { ClickUpStatusPill } from '@/components/clickup-status-pill'
+import { IncompleteFormsTable } from '@/components/incomplete-forms-table'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -72,7 +73,7 @@ export default async function DashboardPage() {
 
   const { data: membership } = await supabase
     .from('agency_users')
-    .select('agencies(name)')
+    .select('agency_id, agencies(name)')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -80,6 +81,9 @@ export default async function DashboardPage() {
     (membership?.agencies as { name?: string } | null)?.name ?? 'your agency'
 
   const { tasks, failedAccountNames } = await listProjectTasksForAgency()
+  const incompleteForms = membership?.agency_id
+    ? await listIncompleteForms(membership.agency_id as string, tasks)
+    : []
   const ongoing = tasks.filter((t) => t.status === 'ongoing')
   const inProgress = tasks.filter((t) => IN_PROGRESS.has(t.status))
   const reviewing = tasks.filter((t) => REVIEWING.has(t.status))
@@ -93,6 +97,12 @@ export default async function DashboardPage() {
         <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           Couldn&apos;t load projects for {failedAccountNames.join(', ')} right now — try refreshing.
         </p>
+      )}
+
+      {incompleteForms.length > 0 && (
+        <div className="mt-10">
+          <IncompleteFormsTable rows={incompleteForms} />
+        </div>
       )}
 
       <p className="mt-10 text-xs font-mono uppercase tracking-wide text-gray-400">

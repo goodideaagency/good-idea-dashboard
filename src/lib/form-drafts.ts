@@ -68,6 +68,42 @@ export async function getFormDraft(params: {
   return { formEntries: data.form_entries, updatedAt: data.updated_at }
 }
 
+export type AgencyDraft = {
+  kind: DraftKind
+  context: Record<string, unknown>
+  accountId: string | null
+  accountName: string | null
+  updatedAt: string
+}
+
+// Every in-progress draft across an agency's users -- powers the
+// "needs completing" table on the Dashboard/Projects pages (see
+// lib/projects.ts's listIncompleteForms). No RLS policy exists on
+// form_drafts (service-role only, by design), so this always goes through
+// the admin client rather than the caller's own session.
+export async function listFormDraftsForAgency(agencyId: string): Promise<AgencyDraft[]> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('form_drafts')
+    .select('kind, context, account_id, updated_at, accounts(name)')
+    .eq('agency_id', agencyId)
+  return (data ?? []).map((d) => {
+    let context: Record<string, unknown> = {}
+    try {
+      context = JSON.parse(d.context as string)
+    } catch {
+      // malformed context -- treat as unmatched rather than throwing
+    }
+    return {
+      kind: d.kind as DraftKind,
+      context,
+      accountId: d.account_id as string | null,
+      accountName: (d.accounts as { name?: string } | null)?.name ?? null,
+      updatedAt: d.updated_at as string,
+    }
+  })
+}
+
 // Removes a draft -- called once the real submission succeeds (so a
 // completed form doesn't leave a stale draft to incorrectly "restore"
 // later) and from the manual "Discard" action.

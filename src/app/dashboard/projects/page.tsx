@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { listProjectTasksForAgency, type ProjectTask } from '@/lib/projects'
+import { listProjectTasksForAgency, listIncompleteForms, type ProjectTask } from '@/lib/projects'
 import { ClickUpStatusPill } from '@/components/clickup-status-pill'
 import { CompletedServicesAccordion } from '@/components/completed-services-accordion'
+import { IncompleteFormsTable } from '@/components/incomplete-forms-table'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -71,7 +72,16 @@ export default async function ProjectsPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: membership } = await supabase
+    .from('agency_users')
+    .select('agency_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
   const { tasks, failedAccountNames } = await listProjectTasksForAgency()
+  const incompleteForms = membership?.agency_id
+    ? await listIncompleteForms(membership.agency_id as string, tasks)
+    : []
   const byName = (a: ProjectTask, b: ProjectTask) =>
     a.accountName.localeCompare(b.accountName) || a.name.localeCompare(b.name)
 
@@ -103,6 +113,12 @@ export default async function ProjectsPage() {
       {nothingYet && (
         <div className="mt-6 border border-dashed border-[#e7e2d3] bg-white p-8 text-center">
           <p className="text-sm text-gray-500">No projects connected yet.</p>
+        </div>
+      )}
+
+      {incompleteForms.length > 0 && (
+        <div className="mt-10">
+          <IncompleteFormsTable rows={incompleteForms} />
         </div>
       )}
 
