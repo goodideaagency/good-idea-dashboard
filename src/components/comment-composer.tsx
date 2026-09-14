@@ -294,7 +294,7 @@ export function CommentComposer({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-y-1 border-t border-[#e7e2d3] bg-[#faf7f0] px-2 py-1">
+        <div className="flex flex-wrap items-center gap-y-1 border-t border-[#e7e2d3] bg-[#faf7f0] px-2 py-1">
           <div className="flex flex-wrap items-center gap-0.5">
             <EditorToolbar editor={editor} />
             <span className="mx-1 h-4 w-px bg-[#e7e2d3]" />
@@ -302,10 +302,13 @@ export function CommentComposer({
               <PaperclipIcon />
             </ToolbarButton>
           </div>
+          {/* ml-auto (not justify-between) so Send still lands on the right
+              even when it wraps onto its own line -- a lone flex item on a
+              line ignores justify-between and sits at the start instead. */}
           <button
             type="submit"
             disabled={posting || !canSubmit}
-            className="shrink-0 bg-[#f7cf4a] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+            className="ml-auto shrink-0 bg-[#f7cf4a] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {posting ? 'Posting…' : 'Send'}
           </button>
