@@ -6,7 +6,7 @@ import type Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
-import { createList } from '@/lib/clickup'
+import { provisionClientProfile } from '@/lib/client-profile'
 import { ensureAgencyStripeCustomer } from '@/lib/subscriptions'
 import { getActiveCreditSubscription } from '@/lib/credits'
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
@@ -97,7 +97,7 @@ export async function addServiceAndCheckout(formData: FormData) {
   // 1. Ensure this agency has exactly ONE Stripe customer.
   const { data: agency } = await admin
     .from('agencies')
-    .select('id, name, stripe_customer_id, clickup_folder_id')
+    .select('id, name, stripe_customer_id, clickup_folder_id, clickup_profiles_list_id')
     .eq('id', membership.agency_id)
     .single()
   if (!agency) redirect('/dashboard')
@@ -167,13 +167,7 @@ export async function addServiceAndCheckout(formData: FormData) {
         accountName = name
         returnTo = `/dashboard/accounts/${accountId}`
 
-        // Same auto-provisioning a Client Profile gets -- without this, a
-        // managed service bought for a brand-new client would have nowhere in
-        // ClickUp for its post-payment intake task to land.
-        if (agency.clickup_folder_id) {
-          const list = await createList(agency.clickup_folder_id, name)
-          if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
-        }
+        await provisionClientProfile(admin, agency, { id: account.id, name }, website)
       }
     }
   }

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
-import { createList } from '@/lib/clickup'
+import { provisionClientProfile } from '@/lib/client-profile'
 
 // Creates the first client account for a just-signed-up managed-service
 // agency (business info was deliberately deferred until after payment --
@@ -40,7 +40,7 @@ export async function completeNewClientSetup(formData: FormData) {
   const admin = createAdminClient()
   const { data: agency } = await admin
     .from('agencies')
-    .select('id, clickup_folder_id')
+    .select('id, clickup_folder_id, clickup_profiles_list_id')
     .eq('id', membership.agency_id)
     .maybeSingle()
   if (!agency) redirect('/dashboard')
@@ -77,10 +77,7 @@ export async function completeNewClientSetup(formData: FormData) {
     )
   }
 
-  if (agency.clickup_folder_id) {
-    const list = await createList(agency.clickup_folder_id, account!.name)
-    if (list) await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account!.id)
-  }
+  await provisionClientProfile(admin, agency, { id: account!.id, name: account!.name }, website)
 
   if (sub) {
     await admin.from('subscriptions').update({ account_id: account!.id }).eq('id', sub.id)

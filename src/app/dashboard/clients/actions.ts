@@ -4,13 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import {
-  createList,
-  createTask,
-  setClientProfileStatus,
-  listTaskSummariesForAccount,
-  CLIENT_PROFILES_STATUSES,
-} from '@/lib/clickup'
+import { setClientProfileStatus, listTaskSummariesForAccount } from '@/lib/clickup'
+import { provisionClientProfile } from '@/lib/client-profile'
 import { getCreditsPriceIds } from '@/lib/subscriptions'
 
 // Creates a Client Profile -- no payment involved. If the agency's ClickUp
@@ -89,35 +84,7 @@ export async function createClientProfile(formData: FormData) {
     .single()
   if (!account) redirect('/dashboard/clients')
 
-  if (agency.clickup_folder_id) {
-    const list = await createList(agency.clickup_folder_id, name)
-    if (list) {
-      await admin.from('accounts').update({ clickup_list_id: list.id }).eq('id', account.id)
-    }
-
-    let profilesListId = agency.clickup_profiles_list_id
-    if (!profilesListId) {
-      // Brand new, empty list -- safe to set the status override right at
-      // creation (see the warning on createList about applying it to a
-      // list that already has tasks).
-      const profilesList = await createList(agency.clickup_folder_id, 'Client Profiles', CLIENT_PROFILES_STATUSES)
-      if (profilesList) {
-        profilesListId = profilesList.id
-        await admin.from('agencies').update({ clickup_profiles_list_id: profilesList.id }).eq('id', agency.id)
-      }
-    }
-
-    if (profilesListId) {
-      const details = website ? `Website: ${website}` : undefined
-      const profileTask = await createTask(profilesListId, `Client Profile — ${name}`, {
-        status: 'client profile',
-        description: details,
-      })
-      if (profileTask) {
-        await admin.from('accounts').update({ clickup_profile_task_id: profileTask.id }).eq('id', account.id)
-      }
-    }
-  }
+  await provisionClientProfile(admin, agency, { id: account.id, name }, website)
 
   revalidatePath('/dashboard/clients')
   redirect(destination(account.id))
