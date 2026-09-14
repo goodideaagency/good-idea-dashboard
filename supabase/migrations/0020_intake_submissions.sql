@@ -2,9 +2,10 @@
 -- received, independent of whether the subsequent ClickUp write succeeds.
 -- Written after a real incident: a client's full managed-service intake
 -- (37 questions) was lost permanently because the app only ever persisted
--- answers by writing them into ClickUp, and a stale session (see the new
--- middleware.ts) bounced the submission to /login before any of that
--- happened, with nothing captured anywhere. Wired into the three flows
+-- answers by writing them into ClickUp, and an auth check (see the
+-- Server-Action carve-out added to src/proxy.ts) bounced the submission to
+-- /login before any of that happened, with nothing captured anywhere. Wired
+-- into the three flows
 -- where losing the data is genuinely painful to redo: managed-service
 -- intake, one-time service requests, and project comments -- see
 -- src/app/dashboard/onboarding/[priceId]/actions.ts,
