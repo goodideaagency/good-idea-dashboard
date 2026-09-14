@@ -40,6 +40,12 @@ export async function autosaveDraft(formData: FormData) {
   const entries = formDataToPlainObject(formData)
   delete entries.__draft_kind
   delete entries.__draft_context
+  // Next.js's own hidden field identifying which Server Action a <form>
+  // binds to -- present in every FormData snapshot taken from the live
+  // DOM, never meaningful form content.
+  for (const key of Object.keys(entries)) {
+    if (key.startsWith('$ACTION_')) delete entries[key]
+  }
 
   await saveFormDraft({
     userId: user.id,
