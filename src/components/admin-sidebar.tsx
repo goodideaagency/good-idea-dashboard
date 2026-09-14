@@ -15,11 +15,13 @@ export function AdminSidebar({
   email,
   isSuperadmin,
   archivedCount,
+  pendingIntakeCount,
   signout,
 }: {
   email: string
   isSuperadmin: boolean
   archivedCount: number
+  pendingIntakeCount: number
   signout: () => void | Promise<void>
 }) {
   const pathname = usePathname()
@@ -56,6 +58,12 @@ export function AdminSidebar({
       )}
       <Link href="/admin/archived" className={navCls(pathname.startsWith('/admin/archived'))}>
         Archived Accounts{archivedCount > 0 ? ` (${archivedCount})` : ''}
+      </Link>
+      <Link
+        href="/admin/intake-recovery"
+        className={navCls(pathname.startsWith('/admin/intake-recovery'))}
+      >
+        Intake Recovery{pendingIntakeCount > 0 ? ` (${pendingIntakeCount})` : ''}
       </Link>
     </nav>
   )

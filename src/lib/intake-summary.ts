@@ -1,7 +1,7 @@
 import type { ClickUpField } from './clickup'
 import type { FieldSection } from './service-catalog'
 
-function formatValue(f: ClickUpField, value: unknown): string {
+export function formatValue(f: ClickUpField, value: unknown): string {
   if (value === undefined || value === null || value === '') return '—'
   if (f.type === 'checkbox') return value ? 'Yes' : 'No'
   if (f.type === 'drop_down') {

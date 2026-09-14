@@ -6,6 +6,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTaskListId, postTaskComment, setTaskStatus } from '@/lib/clickup'
 import type { ComposedSegment } from '@/lib/tiptap-clickup'
+import {
+  recordIntakeSubmission,
+  markIntakeSubmissionSynced,
+  formDataToPlainObject,
+} from '@/lib/intake-submissions'
 
 // The composer authors in a real (Tiptap) rich text editor client-side and
 // sends its already-converted ClickUp segments as JSON -- see
@@ -44,13 +49,27 @@ export async function postProjectComment(formData: FormData) {
   // RLS ensures this only returns the account if it belongs to the caller's agency.
   const { data: account } = await supabase
     .from('accounts')
-    .select('id, clickup_list_id')
+    .select('id, agency_id, clickup_list_id')
     .eq('id', accountId)
-    .maybeSingle<{ id: string; clickup_list_id: string | null }>()
+    .maybeSingle<{ id: string; agency_id: string; clickup_list_id: string | null }>()
   if (!account?.clickup_list_id) redirect('/dashboard/projects')
 
   const taskListId = await getTaskListId(taskId)
   if (taskListId !== account.clickup_list_id) redirect(`/dashboard/projects/${taskId}`)
+
+  // Captured before the ClickUp write -- see lib/intake-submissions.ts. A
+  // client's comment (sometimes a long, considered reply) previously only
+  // ever existed in ClickUp; if that post failed, the text itself was gone,
+  // not just the confirmation.
+  const submissionId = await recordIntakeSubmission({
+    kind: 'project_comment',
+    agencyId: account.agency_id,
+    accountId: account.id,
+    userId: user.id,
+    context: { task_id: taskId },
+    formEntries: formDataToPlainObject(formData),
+    readable: [{ question: 'Comment', answer: segments.map((s) => s.text).join('') }],
+  })
 
   // Dropped BEFORE posting so the webhook (which fires almost immediately)
   // can recover who really wrote this -- every platform-posted comment goes
@@ -71,6 +90,7 @@ export async function postProjectComment(formData: FormData) {
         encodeURIComponent('Could not post your comment. Please try again.')
     )
   }
+  await markIntakeSubmissionSynced(submissionId, { taskId })
   revalidatePath(`/dashboard/projects/${taskId}`)
 }
 

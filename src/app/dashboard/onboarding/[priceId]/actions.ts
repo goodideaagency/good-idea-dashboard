@@ -11,7 +11,12 @@ import {
   updateTaskMarkdownDescription,
 } from '@/lib/clickup'
 import { getManagedServiceByPriceId, buildInternalTaskName, AGENCY_FIELD_ID } from '@/lib/service-catalog'
-import { formatIntakeSummary } from '@/lib/intake-summary'
+import { formatIntakeSummary, formatValue } from '@/lib/intake-summary'
+import {
+  recordIntakeSubmission,
+  markIntakeSubmissionSynced,
+  formDataToPlainObject,
+} from '@/lib/intake-submissions'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFieldValue(formData: FormData, fieldId: string, type: string): any {
@@ -49,11 +54,12 @@ export async function submitManagedServiceIntake(formData: FormData) {
   // RLS ensures this only returns the account if it belongs to the caller's agency.
   const { data: account } = await supabase
     .from('accounts')
-    .select('id, name, clickup_list_id, clickup_profile_task_id, agencies(name)')
+    .select('id, name, agency_id, clickup_list_id, clickup_profile_task_id, agencies(name)')
     .eq('id', accountId)
     .maybeSingle<{
       id: string
       name: string
+      agency_id: string
       clickup_list_id: string | null
       clickup_profile_task_id: string | null
       agencies: { name: string } | null
@@ -86,6 +92,22 @@ export async function submitManagedServiceIntake(formData: FormData) {
   // description so the team sees a clean summary up top instead of having to
   // piece it together from ClickUp's cramped, truncated Custom Fields sidebar.
   const summary = formatIntakeSummary(fields, service.sections, customFields)
+
+  // Captured before the first ClickUp write -- see lib/intake-submissions.ts.
+  // A real client lost a full intake this way when an expired session
+  // bounced their submission before anything was ever persisted anywhere.
+  const submissionId = await recordIntakeSubmission({
+    kind: 'managed_service_intake',
+    agencyId: account.agency_id,
+    accountId: account.id,
+    userId: user.id,
+    context: { price_id: priceId },
+    formEntries: formDataToPlainObject(formData),
+    readable: fields.map((f) => ({
+      question: f.name,
+      answer: formatValue(f, customFields.find((cf) => cf.id === f.id)?.value),
+    })),
+  })
 
   const internalTaskName = buildInternalTaskName(service.label, agencyName, account.name)
   const internalTask = service.templateId
@@ -124,6 +146,11 @@ export async function submitManagedServiceIntake(formData: FormData) {
       await linkTasks(internalTask.id, account.clickup_profile_task_id)
     }
   }
+
+  await markIntakeSubmissionSynced(submissionId, {
+    internalTaskId: internalTask?.id ?? null,
+    clientTaskId: clientTask.id,
+  })
 
   redirect(`/dashboard/projects/${clientTask.id}`)
 }

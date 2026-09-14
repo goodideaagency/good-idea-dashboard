@@ -15,8 +15,13 @@ import {
   deleteTask,
 } from '@/lib/clickup'
 import { getServiceByKey, CREDIT_COST_FIELD_ID, AGENCY_FIELD_ID, buildInternalTaskName } from '@/lib/service-catalog'
-import { formatIntakeSummary } from '@/lib/intake-summary'
+import { formatIntakeSummary, formatValue } from '@/lib/intake-summary'
 import { getAgencyCreditBalance, spendAgencyCredits, grantAgencyCredits } from '@/lib/credits'
+import {
+  recordIntakeSubmission,
+  markIntakeSubmissionSynced,
+  formDataToPlainObject,
+} from '@/lib/intake-submissions'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFieldValue(formData: FormData, fieldId: string, type: string): any {
@@ -111,6 +116,23 @@ export async function submitServiceRequest(formData: FormData) {
     fields.length > 0
       ? formatIntakeSummary(fields, service.sections, customFields)
       : genericDescription || '_No description provided._'
+
+  // Captured before the first ClickUp write -- see lib/intake-submissions.ts.
+  const submissionId = await recordIntakeSubmission({
+    kind: 'service_request',
+    agencyId,
+    accountId,
+    userId: user.id,
+    context: { service_key: serviceKey },
+    formEntries: formDataToPlainObject(formData),
+    readable:
+      fields.length > 0
+        ? fields.map((f) => ({
+            question: f.name,
+            answer: formatValue(f, customFields.find((cf) => cf.id === f.id)?.value),
+          }))
+        : [{ question: 'Description', answer: genericDescription || '—' }],
+  })
 
   const internalTaskName = buildInternalTaskName(service.label, agencyName, account.name)
   const internalTask = service.templateId
@@ -210,6 +232,11 @@ export async function submitServiceRequest(formData: FormData) {
     clickup_client_task_id: clientTask.id,
     service_key: service.key,
     base_credit_cost: service.baseCreditCost,
+  })
+
+  await markIntakeSubmissionSynced(submissionId, {
+    internalTaskId: internalTask.id,
+    clientTaskId: clientTask.id,
   })
 
   redirect(`/dashboard/projects/${clientTask.id}`)

@@ -157,7 +157,12 @@ export async function addServiceAndCheckout(formData: FormData) {
           .insert({ agency_id: agency.id, name, website: website || null })
           .select('id')
           .single()
-        if (!account) redirect('/dashboard')
+        if (!account) {
+          redirect(
+            `/dashboard/add?plan=${priceId}&error=` +
+              encodeURIComponent('Could not add this account. Please try again.')
+          )
+        }
         accountId = account.id
         accountName = name
         returnTo = `/dashboard/accounts/${accountId}`

@@ -49,7 +49,21 @@ export async function proxy(request: NextRequest) {
   const isAdminPath = path.startsWith('/admin') && path !== '/admin/login'
   const isProtected = path.startsWith('/dashboard') || isAdminPath
 
-  if (!user && isProtected) {
+  // A Server Action call (identified by Next's own `next-action` header, not
+  // a normal page navigation) must NOT be redirected from here. A bare
+  // NextResponse.redirect() issued at this layer is a plain HTTP 307 -- the
+  // client's action-invoking fetch doesn't expect that shape (a real in-app
+  // redirect() call gets a special `x-action-redirect` response instead, see
+  // Next's action-handler), so this used to surface to the user as a raw
+  // client-side error instead of a clean bounce to /login -- destroying
+  // whatever was in the submitted form along with it. Every action in this
+  // app already does its own `if (!user) redirect(...)` check, which DOES
+  // use that action-aware mechanism, so deferring to it here is both safer
+  // and (per Next's own docs) the recommended pattern: proxy is for
+  // optimistic checks on page loads, not the only line of defense.
+  const isActionRequest = request.headers.has('next-action')
+
+  if (!user && isProtected && !isActionRequest) {
     const url = request.nextUrl.clone()
     url.pathname = isAdminPath ? '/admin/login' : '/login'
     return NextResponse.redirect(url)

@@ -19,10 +19,13 @@ export default async function AdminDashboardLayout({
   if (!role) redirect('/dashboard')
 
   const admin = createAdminClient()
-  const { count } = await admin
-    .from('agencies')
-    .select('id', { count: 'exact', head: true })
-    .eq('archived', true)
+  const [{ count }, { count: pendingIntakeCount }] = await Promise.all([
+    admin.from('agencies').select('id', { count: 'exact', head: true }).eq('archived', true),
+    admin
+      .from('intake_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending'),
+  ])
 
   return (
     <div className="min-h-screen lg:flex">
@@ -30,6 +33,7 @@ export default async function AdminDashboardLayout({
         email={user.email ?? ''}
         isSuperadmin={role === 'superadmin'}
         archivedCount={count ?? 0}
+        pendingIntakeCount={pendingIntakeCount ?? 0}
         signout={signout}
       />
       <main className="min-w-0 flex-1 bg-white">

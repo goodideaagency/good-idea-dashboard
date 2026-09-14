@@ -8,9 +8,9 @@ import { addServiceAndCheckout } from '../actions'
 export default async function AddAccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string }>
+  searchParams: Promise<{ plan?: string; error?: string }>
 }) {
-  const { plan } = await searchParams
+  const { plan, error } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -46,6 +46,7 @@ export default async function AddAccountPage({
       </div>
 
       <div className="mt-6 max-w-xl bg-white p-6 ring-1 ring-[#ece7d8]">
+        {error && <p className="mb-4 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         {creditPlan ? (
           <form action={addServiceAndCheckout} className="space-y-4">
             <input type="hidden" name="priceId" value={creditPlan.id} />
