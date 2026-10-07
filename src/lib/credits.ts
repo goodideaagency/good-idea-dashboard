@@ -146,14 +146,22 @@ export async function getAgencyCreditHistory(agencyId: string): Promise<CreditHi
 
 export type CreditSource = 'subscription_initial' | 'subscription_renewal' | 'topup' | 'manual' | 'task_cost_decrease'
 
+// "Never expires" is an expires_at ~100 years out, not a null -- see
+// migration 0022 for why. Anything past this threshold displays as "never".
+export const NEVER_EXPIRES_DAYS = 36500
+export function isNeverExpiring(expiresAtIso: string): boolean {
+  return new Date(expiresAtIso).getTime() > Date.now() + 50 * 365 * 24 * 60 * 60 * 1000
+}
+
 // Grants credits to an agency. Pass stripeEventId whenever the grant is
 // triggered by a Stripe webhook -- makes it safe to call twice for the same
-// event (a retried delivery) without double-granting.
+// event (a retried delivery) without double-granting. expiresInDays defaults
+// to the database's 60-day rule when omitted.
 export async function grantAgencyCredits(
   agencyId: string,
   amount: number,
   source: CreditSource,
-  opts: { stripeEventId?: string; note?: string; createdBy?: string; clickupTaskId?: string } = {}
+  opts: { stripeEventId?: string; note?: string; createdBy?: string; clickupTaskId?: string; expiresInDays?: number } = {}
 ): Promise<void> {
   if (amount <= 0) return
   const admin = createAdminClient()
@@ -165,6 +173,7 @@ export async function grantAgencyCredits(
     p_note: opts.note ?? null,
     p_created_by: opts.createdBy ?? null,
     p_clickup_task_id: opts.clickupTaskId ?? null,
+    ...(opts.expiresInDays ? { p_expires_in_days: opts.expiresInDays } : {}),
   })
   // Supabase-js doesn't throw on a failed RPC by default -- every caller
   // here is the Stripe webhook, which needs this to throw so its try/catch

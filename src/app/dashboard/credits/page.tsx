@@ -5,6 +5,7 @@ import {
   getActiveCreditSubscription,
   getAgencyCreditBalance,
   getAgencyCreditHistory,
+  isNeverExpiring,
   listCreditTopupProducts,
   type CreditHistoryEntry,
 } from '@/lib/credits'
@@ -51,7 +52,9 @@ function HistoryRow({ entry }: { entry: CreditHistoryEntry }) {
         <p className="mt-0.5 text-xs text-gray-400">
           {new Date(entry.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           {isGrant &&
-            ` · expires ${new Date(entry.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+            (isNeverExpiring(entry.expiresAt)
+              ? ' · never expires'
+              : ` · expires ${new Date(entry.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`)}
         </p>
       </div>
       <span className={`font-mono text-sm font-semibold ${isGrant ? 'text-green-700' : 'text-gray-900'}`}>
@@ -93,8 +96,8 @@ export default async function CreditsPage() {
     <div>
       <h1 className="text-3xl font-semibold text-gray-900">Credits</h1>
       <p className="mt-2 text-sm text-gray-500">
-        Used to request one-time services. Credits roll over for 30 days and expire 60 days after
-        they&apos;re added.
+        Used to request one-time services. Plan credits roll over for 30 days and expire 60 days after
+        they&apos;re added. Credit packs marked &quot;never expires&quot; stay until used.
       </p>
 
       <div className="mt-6 max-w-4xl">

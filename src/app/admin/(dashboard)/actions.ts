@@ -11,6 +11,7 @@ import { stripe } from '@/lib/stripe'
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
 import { createList } from '@/lib/clickup'
 import { upsertSubscriptionFromStripe } from '@/lib/subscriptions'
+import { grantAgencyCredits, NEVER_EXPIRES_DAYS } from '@/lib/credits'
 
 // Logs the calling admin into a real session as the target agency user --
 // full read/write access, exactly what that user would see. Works by
@@ -326,4 +327,76 @@ export async function attachExternalSubscription(formData: FormData) {
 
   revalidatePath(`/admin/agencies/${agencyId}`)
   redirect(`/admin/agencies/${agencyId}`)
+}
+
+// Manually grants credits to an agency, optionally never-expiring -- for a
+// one-off credit pack sold outside the self-serve top-up flow (which is only
+// open to agencies on a credit plan). Billing history is built entirely from
+// Stripe invoices, so every pack must exist as a PAID Stripe invoice on one of
+// the agency's Stripe customers: the invoice id is required, verified, and
+// also used as the idempotency key so the same invoice can never grant
+// credits twice.
+export async function grantManualCredits(formData: FormData) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!(await isAdmin(user?.email))) redirect('/dashboard')
+
+  const agencyId = String(formData.get('agency_id') || '').trim()
+  if (!agencyId) redirect('/admin')
+  const back = (params: string) => `/admin/agencies/${agencyId}?${params}`
+  const fail = (msg: string) => redirect(back('error=' + encodeURIComponent(msg)))
+
+  const amount = Number(String(formData.get('amount') || '').trim())
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 100000) fail('Enter a whole number of credits greater than 0.')
+  const neverExpires = String(formData.get('expires') || '') === 'never'
+  const invoiceId = String(formData.get('invoice_id') || '').trim()
+  if (!invoiceId) fail('A paid Stripe invoice ID is required so the purchase shows in their billing history.')
+  const note = String(formData.get('note') || '').trim() || 'Credit pack purchase'
+
+  const admin = createAdminClient()
+  const { data: agency } = await admin
+    .from('agencies')
+    .select('id, stripe_customer_id')
+    .eq('id', agencyId)
+    .maybeSingle()
+  if (!agency) redirect('/admin')
+
+  {
+    // The invoice must be paid and belong to a Stripe customer this agency's
+    // Transactions page actually reads (the agency's own, or any customer on
+    // one of its subscriptions) -- otherwise it would never show in their
+    // billing history, which is the whole point of attaching it.
+    const { data: subs } = await admin.from('subscriptions').select('stripe_customer_id').eq('agency_id', agencyId)
+    const customerIds = new Set<string>([
+      ...(agency!.stripe_customer_id ? [agency!.stripe_customer_id as string] : []),
+      ...(subs ?? []).map((s) => s.stripe_customer_id as string | null).filter((id): id is string => !!id),
+    ])
+    try {
+      const invoice = await stripe.invoices.retrieve(invoiceId)
+      const invoiceCustomer = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
+      if (invoice.status !== 'paid') fail(`That invoice is "${invoice.status}", not paid yet. Grant credits once it's paid.`)
+      if (!invoiceCustomer || !customerIds.has(invoiceCustomer))
+        fail("That invoice belongs to a Stripe customer that isn't linked to this agency, so it wouldn't show in their billing history.")
+    } catch (e) {
+      if (e && typeof e === 'object' && 'digest' in e) throw e // a redirect from fail() above
+      fail('Could not find that invoice in Stripe.')
+    }
+  }
+
+  try {
+    await grantAgencyCredits(agencyId, amount, 'manual', {
+      note,
+      createdBy: user!.email ?? undefined,
+      stripeEventId: invoiceId,
+      ...(neverExpires ? { expiresInDays: NEVER_EXPIRES_DAYS } : {}),
+    })
+  } catch {
+    fail('Could not grant credits.')
+  }
+
+  revalidatePath(`/admin/agencies/${agencyId}`)
+  revalidatePath('/dashboard/credits')
+  redirect(back('granted=' + amount))
 }

@@ -6,7 +6,7 @@ import { getAdminRole } from '@/lib/admin-auth'
 import { calculateMrrCents, formatMoney } from '@/lib/mrr'
 import { getCreditsPriceIds } from '@/lib/subscriptions'
 import { StatusBadges, planLabel } from '@/components/status-badge'
-import { setAgencyArchived, impersonateUser, attachExternalSubscription, sendLoginLink } from '../../actions'
+import { setAgencyArchived, impersonateUser, attachExternalSubscription, sendLoginLink, grantManualCredits } from '../../actions'
 import { ArchiveAgencyButton } from '@/components/archive-agency-button'
 import { CopyLinkResult } from '@/components/copy-link-result'
 
@@ -18,10 +18,10 @@ export default async function AgencyDetailPage({
   searchParams,
 }: {
   params: Promise<{ agencyId: string }>
-  searchParams: Promise<{ error?: string; loginLink?: string; loginEmail?: string }>
+  searchParams: Promise<{ error?: string; loginLink?: string; loginEmail?: string; granted?: string }>
 }) {
   const { agencyId } = await params
-  const { error, loginLink, loginEmail } = await searchParams
+  const { error, loginLink, loginEmail, granted } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -170,6 +170,52 @@ export default async function AgencyDetailPage({
           )}
         </>
       )}
+
+      <p className="mt-8 text-xs font-mono uppercase tracking-wide text-gray-400">Grant credits</p>
+      <p className="mt-1 text-sm text-gray-500">
+        For a credit pack sold outside the self-serve top-ups. Create and collect a Stripe invoice for this
+        agency first, then paste its ID here -- that&apos;s what puts the purchase in their billing history.
+      </p>
+      {granted && (
+        <p className="mt-3 max-w-2xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-200">
+          Granted {granted} credits ✓
+        </p>
+      )}
+      <form action={grantManualCredits} className="mt-3 max-w-2xl space-y-4 bg-white p-5 ring-1 ring-[#ece7d8]">
+        <input type="hidden" name="agency_id" value={agency.id} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="amount">
+              Credits
+            </label>
+            <input id="amount" name="amount" type="number" min={1} step={1} required className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="expires">
+              Expiration
+            </label>
+            <select id="expires" name="expires" defaultValue="60" className={inputCls}>
+              <option value="60">Expires in 60 days (standard)</option>
+              <option value="never">Never expires</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="invoice_id">
+            Paid Stripe invoice ID <span className="font-normal text-gray-400">(shows the purchase in billing history)</span>
+          </label>
+          <input id="invoice_id" name="invoice_id" type="text" required placeholder="in_..." className={`${inputCls} font-mono`} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="note">
+            Note shown in their credit history <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <input id="note" name="note" type="text" placeholder="Credit pack purchase" className={inputCls} />
+        </div>
+        <button className="bg-[#f7cf4a] px-4 py-2 text-sm font-semibold text-black hover:brightness-95">
+          Grant credits
+        </button>
+      </form>
 
       <p className="mt-8 text-xs font-mono uppercase tracking-wide text-gray-400">
         Attach existing Stripe subscription
