@@ -12,7 +12,7 @@ const inputCls =
 // `draftValue` pre-fills from a previously autosaved draft (see
 // lib/form-drafts.ts) -- always the plain string(s) formDataToPlainObject
 // stored, so it matches whatever the browser itself would have sent.
-function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }) {
+function FieldInput({ f, draftValue, optional }: { f: ClickUpField; draftValue?: unknown; optional?: boolean }) {
   if (f.type === 'checkbox') {
     return (
       <input
@@ -37,7 +37,7 @@ function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }
       <select
         id={`field-${f.id}`}
         name={`field_${f.id}`}
-        required
+        required={!optional}
         defaultValue={defaultValue ?? ''}
         className={inputCls}
       >
@@ -56,7 +56,7 @@ function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }
         id={`field-${f.id}`}
         name={`field_${f.id}`}
         type="number"
-        required
+        required={!optional}
         defaultValue={defaultValue}
         className={inputCls}
       />
@@ -68,7 +68,7 @@ function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }
         id={`field-${f.id}`}
         name={`field_${f.id}`}
         type="date"
-        required
+        required={!optional}
         defaultValue={defaultValue}
         className={inputCls}
       />
@@ -80,7 +80,7 @@ function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }
         id={`field-${f.id}`}
         name={`field_${f.id}`}
         type="url"
-        required
+        required={!optional}
         defaultValue={defaultValue}
         className={inputCls}
       />
@@ -92,7 +92,7 @@ function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }
         id={`field-${f.id}`}
         name={`field_${f.id}`}
         type="email"
-        required
+        required={!optional}
         defaultValue={defaultValue}
         className={inputCls}
       />
@@ -103,7 +103,7 @@ function FieldInput({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }
       id={`field-${f.id}`}
       name={`field_${f.id}`}
       rows={3}
-      required
+      required={!optional}
       defaultValue={defaultValue}
       className={inputCls}
     />
@@ -138,14 +138,15 @@ function LabelsField({ f, draftValue }: { f: ClickUpField; draftValue?: unknown 
   )
 }
 
-function Field({ f, draftValue }: { f: ClickUpField; draftValue?: unknown }) {
+function Field({ f, draftValue, optional }: { f: ClickUpField; draftValue?: unknown; optional?: boolean }) {
   if (f.type === 'labels') return <LabelsField f={f} draftValue={draftValue} />
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700" htmlFor={`field-${f.id}`}>
         {f.name}
+        {optional && <span className="font-normal text-gray-400"> (optional)</span>}
       </label>
-      <FieldInput f={f} draftValue={draftValue} />
+      <FieldInput f={f} draftValue={draftValue} optional={optional} />
     </div>
   )
 }
@@ -159,9 +160,12 @@ export function ServiceFormFields({
   fields,
   sections,
   defaultValues,
+  optionalFieldIds,
 }: {
   fields: ClickUpField[]
   sections?: FieldSection[]
+  // Fields allowed to be left blank (everything else is required).
+  optionalFieldIds?: string[]
   // A previously autosaved draft's raw form entries, keyed the same way
   // formData is (`field_${id}`) -- see lib/form-drafts.ts.
   defaultValues?: Record<string, unknown>
@@ -170,7 +174,7 @@ export function ServiceFormFields({
     return (
       <div className="space-y-4">
         {fields.map((f) => (
-          <Field key={f.id} f={f} draftValue={defaultValues?.[`field_${f.id}`]} />
+          <Field key={f.id} f={f} draftValue={defaultValues?.[`field_${f.id}`]} optional={optionalFieldIds?.includes(f.id)} />
         ))}
       </div>
     )

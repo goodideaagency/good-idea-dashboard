@@ -142,7 +142,20 @@ export default async function RequestServiceFormPage({
               </p>
             </div>
 
-            <ServiceFormFields fields={fields} sections={service.sections} defaultValues={draft?.formEntries} />
+            <ServiceFormFields
+              fields={fields}
+              sections={service.sections}
+              defaultValues={draft?.formEntries}
+              optionalFieldIds={service.optionalFieldIds}
+            />
+            {!genericIntake && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="attachment">
+                  Attach a brief or file <span className="font-normal text-gray-400">(optional)</span>
+                </label>
+                <input id="attachment" name="attachment" type="file" className="mt-1 text-sm text-gray-700" />
+              </div>
+            )}
 
             {genericIntake && (
               <>

@@ -60,7 +60,11 @@ export type FieldSection = { title: string; fieldIds: string[] }
 // dashboard/request/[key]/actions.ts). The team can raise or lower a given
 // task's actual cost later via the Credit Cost field in ClickUp; only the
 // difference from this base gets charged/refunded (reconcileTaskCost).
-export type OneTimeServiceDef = ServiceDef & { baseCreditCost: number }
+export type OneTimeServiceDef = ServiceDef & {
+  baseCreditCost: number
+  // Intake questions the agency may leave blank (all others are required).
+  optionalFieldIds?: string[]
+}
 
 // PPC Account Audit intake -- mirrors the standalone "Audit Intake" form
 // (agency name/email/website are skipped here since the platform already
@@ -121,6 +125,22 @@ const PPC_AUDIT_SECTIONS: FieldSection[] = [
 ]
 const PPC_AUDIT_FIELD_IDS = PPC_AUDIT_SECTIONS.flatMap((s) => s.fieldIds)
 
+// Shared intake questions for the creative services (Static Ad Set, Carousel
+// Ad, Video Ad). A brief document can also be attached via the form's upload.
+const CREATIVE_BRIEF_START = [
+  '7b08cd29-5dd1-41c5-a604-5e2c9116bf87', // What do you need?
+]
+const CREATIVE_BRIEF_END = [
+  '9369f88c-9e1d-47b7-af22-9061927aef8d', // Brand assets (link ...)
+  '4bd73c45-1c27-4c9f-a016-bb27ef92ede2', // Ad copy and call to action
+  '3d3be83f-2919-4c39-acc8-2580d69f2869', // Examples you like
+  '48aa015f-41b0-460f-80f3-51265b6dc240', // Needed by
+]
+const CREATIVE_OPTIONAL_FIELD_IDS = [
+  '3d3be83f-2919-4c39-acc8-2580d69f2869', // Examples you like
+  '48aa015f-41b0-460f-80f3-51265b6dc240', // Needed by
+]
+
 export const ONE_TIME_SERVICES: OneTimeServiceDef[] = [
   {
     key: 'consulting-30',
@@ -136,12 +156,31 @@ export const ONE_TIME_SERVICES: OneTimeServiceDef[] = [
     baseCreditCost: 1,
     fieldIds: [],
   },
+  // Creative services share one intake. The ClickUp "Where will the ads run?"
+  // multi-select has a different field id on each List; the rest are shared.
   {
-    key: 'ad-design',
-    label: 'Ad Design',
-    internalListId: '901418378719',
-    baseCreditCost: 2,
-    fieldIds: [],
+    key: 'static-ad-set',
+    label: 'Static Ad Set',
+    internalListId: '901422245011',
+    baseCreditCost: 1, // 2 variations in 1:1, 4:5 and 9:16
+    fieldIds: [...CREATIVE_BRIEF_START, '0307921a-2ac3-4c2d-b83c-1c839c11a29b', ...CREATIVE_BRIEF_END],
+    optionalFieldIds: CREATIVE_OPTIONAL_FIELD_IDS,
+  },
+  {
+    key: 'carousel-ad',
+    label: 'Carousel Ad',
+    internalListId: '901422245012',
+    baseCreditCost: 2, // 1 version, up to 6 slides
+    fieldIds: [...CREATIVE_BRIEF_START, '6227b44b-690e-45e5-b8d3-86261daf37c4', ...CREATIVE_BRIEF_END],
+    optionalFieldIds: CREATIVE_OPTIONAL_FIELD_IDS,
+  },
+  {
+    key: 'video-ad',
+    label: 'Video Ad',
+    internalListId: '901422245013',
+    baseCreditCost: 2, // 1 version, up to 30 seconds, in 1:1, 4:5 and 9:16
+    fieldIds: [...CREATIVE_BRIEF_START, '7075dddc-f77f-41ac-9b2f-a320af678cc1', ...CREATIVE_BRIEF_END],
+    optionalFieldIds: CREATIVE_OPTIONAL_FIELD_IDS,
   },
   {
     key: 'ppc-account-audit',
