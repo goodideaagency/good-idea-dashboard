@@ -187,7 +187,7 @@ export const ONE_TIME_SERVICES: OneTimeServiceDef[] = [
     label: 'PPC Account Audit',
     internalListId: '901418382325',
     templateId: 't-86bb24h91',
-    baseCreditCost: 2,
+    baseCreditCost: 4,
     fieldIds: PPC_AUDIT_FIELD_IDS,
     sections: PPC_AUDIT_SECTIONS,
   },
