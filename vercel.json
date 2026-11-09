@@ -1,5 +1,12 @@
 {
   "crons": [
-    { "path": "/api/notifications/sweep", "schedule": "0 6 * * *" }
+    {
+      "path": "/api/notifications/sweep",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/health/run?tier=daily",
+      "schedule": "0 12 * * *"
+    }
   ]
 }
