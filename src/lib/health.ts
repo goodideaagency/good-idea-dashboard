@@ -283,7 +283,13 @@ const CHECKS: Check[] = [
         .select('stripe_subscription_id, status')
         .limit(5000)
       if (sErr) throw new Error(sErr.message)
-      const ours = new Map((rows ?? []).map((r) => [r.stripe_subscription_id as string, r.status as string]))
+      // Rows with no Stripe id (manually added/comped subscriptions) aren't
+      // backed by Stripe, so there's nothing to compare them against.
+      const ours = new Map(
+        (rows ?? [])
+          .filter((r) => r.stripe_subscription_id)
+          .map((r) => [r.stripe_subscription_id as string, r.status as string])
+      )
 
       const untagged: string[] = []
       const missing: string[] = []
