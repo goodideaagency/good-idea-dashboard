@@ -467,8 +467,11 @@ export async function runHealth(
     }
   }
 
-  // Weekly "all good" summary, riding on the Monday daily run.
-  const isWeeklySummary = tier === 'daily' && new Date().getUTCDay() === 1
+  // Twice-weekly "all good" summary (Monday + Thursday), riding on the daily run.
+  // Skipped on a day an alert email already went out, since that email already
+  // reports the current state.
+  const SUMMARY_DAYS_UTC = [1, 4]
+  const isWeeklySummary = tier === 'daily' && SUMMARY_DAYS_UTC.includes(new Date().getUTCDay())
 
   let sent: { sent: boolean; error?: string } | null = null
   if (newlyFailing.length || stillFailing.length || recovered.length) {
@@ -487,7 +490,7 @@ export async function runHealth(
       ? section('Still failing', failing, '#b45309')
       : '<p>Everything is healthy.</p>'
     sent = await sendAlertEmail(
-      `[Good Idea Platform] Weekly summary: ${failing.length ? `${failing.length} issue(s) open` : 'all healthy'}`,
+      `[Good Idea Platform] Health summary: ${failing.length ? `${failing.length} issue(s) open` : 'all healthy'}`,
       `${lines}${section('All checks', results.filter((r) => r.ok), '#15803d')}`
     )
   }
