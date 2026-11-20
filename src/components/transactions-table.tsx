@@ -71,10 +71,10 @@ export function TransactionsTable({
             <tr key={t.id}>
               <td className="px-5 py-3 text-gray-900">{fmtDate(t.date)}</td>
               {agencyFor && (
-                <td className="px-5 py-3 text-gray-700">{agencyFor(t.subscriptionId) ?? '—'}</td>
+                <td className="px-5 py-3 text-gray-700">{agencyFor(t.subscriptionId) ?? t.agencyName ?? '—'}</td>
               )}
               {accountFor && (
-                <td className="px-5 py-3 text-gray-700">{accountFor(t.subscriptionId) ?? '—'}</td>
+                <td className="px-5 py-3 text-gray-700">{accountFor(t.subscriptionId) ?? t.label ?? '—'}</td>
               )}
               <td className="px-5 py-3 text-gray-900">{money(t.amount, t.currency)}</td>
               <td className="px-5 py-3">

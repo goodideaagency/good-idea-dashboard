@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/admin-auth'
-import { listAllInvoices } from '@/lib/transactions'
+import { listAllInvoices, listAllTopups } from '@/lib/transactions'
 import { TransactionsTable } from '@/components/transactions-table'
 
 export default async function AdminTransactionsPage() {
@@ -27,7 +27,8 @@ export default async function AdminTransactionsPage() {
     agencyBySub.set(id, (s.agencies as { name?: string } | null)?.name)
   }
 
-  const txns = await listAllInvoices()
+  const [invoices, topups] = await Promise.all([listAllInvoices(), listAllTopups()])
+  const txns = [...invoices, ...topups].sort((a, b) => b.date.localeCompare(a.date))
 
   return (
     <div>

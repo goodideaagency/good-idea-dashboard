@@ -10,6 +10,10 @@ export type Txn = {
   number: string | null
   url: string | null // hosted invoice / receipt page
   subscriptionId: string | null
+  // Only set for records that have no subscription to look a name up from
+  // (credit top-ups): what to show in the Account / Agency columns instead.
+  label?: string | null
+  agencyName?: string | null
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,4 +83,68 @@ export async function listAllInvoices(limit = 100): Promise<Txn[]> {
   } catch {
     return []
   }
+}
+
+// A credit top-up is a one-time Checkout Session (mode "payment"), which
+// Stripe does not turn into an invoice -- so it never appears in the
+// invoice lists above, even though the agency was really charged and
+// credited. Read them from the checkout sessions instead, keeping only
+// the ones this platform created (metadata.credit_topup) that actually
+// got paid, and pulling the receipt from the underlying charge.
+const TOPUP_EXPAND = ['data.line_items', 'data.payment_intent.latest_charge']
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeTopup(sess: any): Txn | null {
+  if (sess.mode !== 'payment' || sess.metadata?.credit_topup !== 'true') return null
+  if (sess.payment_status !== 'paid') return null
+  const pi = sess.payment_intent && typeof sess.payment_intent === 'object' ? sess.payment_intent : null
+  const charge = pi?.latest_charge && typeof pi.latest_charge === 'object' ? pi.latest_charge : null
+  return {
+    id: sess.id,
+    date: new Date((charge?.created ?? sess.created) * 1000).toISOString(),
+    amount: sess.amount_total ?? 0,
+    currency: (sess.currency ?? 'usd').toUpperCase(),
+    status: charge?.refunded ? 'refunded' : 'paid',
+    number: null,
+    url: charge?.receipt_url ?? null,
+    subscriptionId: null,
+    label: sess.line_items?.data?.[0]?.description ?? 'Credit top-up',
+    agencyName: sess.metadata?.agency_name ?? null,
+  }
+}
+
+// Paid credit top-ups for one Stripe customer. Same failure handling as the
+// invoice lists: a bad lookup returns [] instead of breaking the page.
+export async function listTopupsForCustomer(customerId: string, limit = 100): Promise<Txn[]> {
+  try {
+    const res = await stripe.checkout.sessions.list({ customer: customerId, limit, expand: TOPUP_EXPAND })
+    return res.data.map(normalizeTopup).filter((t): t is Txn => t !== null)
+  } catch {
+    return []
+  }
+}
+
+// Paid credit top-ups across the whole Stripe account (admin view). Most
+// sessions are subscription signups, so scan a few pages rather than just
+// the newest 100 to avoid silently missing older top-ups.
+export async function listAllTopups(maxSessions = 300): Promise<Txn[]> {
+  try {
+    const sessions = await stripe.checkout.sessions
+      .list({ limit: 100, expand: TOPUP_EXPAND })
+      .autoPagingToArray({ limit: maxSessions })
+    return sessions.map(normalizeTopup).filter((t): t is Txn => t !== null)
+  } catch {
+    return []
+  }
+}
+
+// Everything a customer set has been charged: subscription invoices plus
+// credit top-ups, merged newest-first.
+export async function listTransactionsForCustomers(customerIds: string[]): Promise<Txn[]> {
+  const uniqueIds = [...new Set(customerIds.filter(Boolean))]
+  const [invoices, topups] = await Promise.all([
+    listInvoicesForCustomers(uniqueIds),
+    Promise.all(uniqueIds.map((id) => listTopupsForCustomer(id))),
+  ])
+  return [...invoices, ...topups.flat()].sort((a, b) => b.date.localeCompare(a.date))
 }

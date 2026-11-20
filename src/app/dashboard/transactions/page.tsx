@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { listInvoicesForCustomers } from '@/lib/transactions'
+import { listTransactionsForCustomers } from '@/lib/transactions'
 import { TransactionsTable } from '@/components/transactions-table'
 
 export default async function TransactionsPage() {
@@ -48,7 +48,7 @@ export default async function TransactionsPage() {
     ...(subs ?? []).map((s) => s.stripe_customer_id as string | null).filter((id): id is string => Boolean(id)),
   ]
 
-  const txns = await listInvoicesForCustomers(customerIds)
+  const txns = await listTransactionsForCustomers(customerIds)
 
   return (
     <div>
