@@ -16,13 +16,14 @@ export default async function AdminTransactionsPage() {
   const admin = createAdminClient()
   const { data: subs } = await admin
     .from('subscriptions')
-    .select('stripe_subscription_id, accounts(name), agencies(name)')
+    .select('stripe_subscription_id, product_name, accounts(name), agencies(name)')
 
   const acctBySub = new Map<string, string | undefined>()
   const agencyBySub = new Map<string, string | undefined>()
   for (const s of subs ?? []) {
     const id = s.stripe_subscription_id as string
-    acctBySub.set(id, (s.accounts as { name?: string } | null)?.name)
+    // An agency-level credit plan has no client account -- label it by plan.
+    acctBySub.set(id, (s.accounts as { name?: string } | null)?.name ?? (s.product_name as string | null) ?? undefined)
     agencyBySub.set(id, (s.agencies as { name?: string } | null)?.name)
   }
 

@@ -23,15 +23,17 @@ export default async function TransactionsPage() {
     .eq('id', membership.agency_id)
     .maybeSingle()
 
-  // Map each subscription to its account name so we can label rows.
+  // Map each subscription to a label for its rows: the account's name, or --
+  // for an agency-level credit plan, which belongs to no client account --
+  // the plan's own name (otherwise those rows rendered as a bare "—").
   const { data: subs } = await supabase
     .from('subscriptions')
-    .select('stripe_subscription_id, stripe_customer_id, accounts(name)')
+    .select('stripe_subscription_id, stripe_customer_id, product_name, accounts(name)')
   const nameBySub = new Map<string, string | undefined>()
   for (const s of subs ?? []) {
     nameBySub.set(
       s.stripe_subscription_id as string,
-      (s.accounts as { name?: string } | null)?.name
+      (s.accounts as { name?: string } | null)?.name ?? (s.product_name as string | null) ?? undefined
     )
   }
 
